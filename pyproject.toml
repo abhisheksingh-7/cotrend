@@ -11,6 +11,7 @@ ray = {version = "^2.21.0", extras = ["data"]}
 pydantic = "^2.7.1"
 torch = "^2.3.0"
 lightning = "^2.2.4"
+transformers = "^4.40.2"
 faiss-gpu = "^1.7.2"
 
 [tool.poetry.group.dev.dependencies]
