@@ -1,7 +1,8 @@
 import enum
-from typing import Optional
-import pydantic
 import uuid
+from typing import Optional
+
+import pydantic
 
 
 class Sources(str, enum.Enum):
@@ -13,3 +14,10 @@ class Document(pydantic.BaseModel):
     doc_id: uuid.UUID
     title: Optional[str]
     content: str
+
+
+class TrainingDataPoint(Document):
+    """One training data point for the model"""
+
+    key: list[int]  # (seq_len)
+    query: list[int]  # (seq_len)
