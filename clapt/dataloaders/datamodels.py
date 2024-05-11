@@ -2,9 +2,7 @@ import enum
 import uuid
 from typing import Optional
 
-import numpy as np
 import pydantic
-import torch
 
 
 class Sources(str, enum.Enum):
@@ -23,10 +21,3 @@ class TrainingDataPoint(Document):
 
     key: list[int]  # (seq_len)
     query: list[int]  # (seq_len)
-
-    ## cnf
-    model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
-
-    @pydantic.field_serializer("key", "query")
-    def dont_serialize(self, v: torch.Tensor) -> torch.Tensor:
-        return v

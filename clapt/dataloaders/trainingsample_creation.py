@@ -16,7 +16,6 @@ from clapt.dataloaders import datamodels, validation
 
 
 class Augmentations(str, enum.Enum):
-    MASK = "mask"
     REPLACE = "replace"
     DELETE = "delete"
     SHUFFLE = "shuffle"
@@ -158,4 +157,5 @@ if __name__ == "__main__":
     )
     dataset = wikipedia_loading.create_wikipedia_dataset()
     datapoint = dataset.take(1)[0]
-    dpfactory(datapoint)
+    processed_dp = dpfactory(datapoint)
+    print(processed_dp)
