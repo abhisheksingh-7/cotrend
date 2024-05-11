@@ -1,0 +1,3 @@
+[submodule "contriever"]
+	path = contriever
+	url = git@github.com:facebookresearch/contriever.git
