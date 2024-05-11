@@ -8,6 +8,10 @@ help: # Show help for each of the Makefile recipes.
 setup: # Installs project dependencies including all extras with Poetry.
 	poetry install --all-extras
 
+.PHONY: data
+data: # Downloads the data using the script provided by DrQA.
+	DrQA/download.sh
+
 .PHONY: fmt
 fmt: # Formats the code in the src/ and tests/ directories using black.
 	poetry run isort src/ tests/ 
