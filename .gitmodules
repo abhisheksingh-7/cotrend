@@ -1,3 +1,6 @@
 [submodule "contriever"]
 	path = contriever
 	url = git@github.com:facebookresearch/contriever.git
+[submodule "DrQA"]
+	path = DrQA
+	url = git@github.com:facebookresearch/DrQA.git
