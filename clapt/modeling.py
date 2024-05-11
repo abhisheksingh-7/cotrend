@@ -40,26 +40,27 @@ class CLAPT(nn.Module):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[T.LongTensor] = None,
+        decoder_embeds: Optional[T.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
-        lm_outputs: CausalLMOutputWithPast = self.decoder_with_lm(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            labels=labels,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=True,
-            return_dict=True,
-            cache_position=cache_position,
-        )
-        decoder_embeds = lm_outputs.hidden_states[-1]
+        if decoder_embeds is None:
+            lm_outputs: CausalLMOutputWithPast = self.decoder_with_lm(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                position_ids=position_ids,
+                past_key_values=past_key_values,
+                inputs_embeds=inputs_embeds,
+                labels=labels,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=True,
+                return_dict=True,
+                cache_position=cache_position,
+            )
+            decoder_embeds = lm_outputs.hidden_states[-1]
         encodings, mask = self.get_encoding_with_query_vec(
             decoder_embeds, attention_mask
         )
-        embedding = self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
-        return embedding
+        return self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
 
     def get_encoding_with_query_vec(
         self, decoder_embeds: T.Tensor, attention_mask: T.Tensor
