@@ -4,3 +4,5 @@
 [submodule "DrQA"]
 	path = DrQA
 	url = git@github.com:facebookresearch/DrQA.git
+[submodule "DrQA/"]
+	branch = main
