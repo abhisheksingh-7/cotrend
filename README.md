@@ -1,1 +1,1 @@
-# Llama-3 Hackathon 2024
+# CLAPT - Llama-3 Hackathon 2024
