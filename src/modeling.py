@@ -5,17 +5,23 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaForCausalLM
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
+NUM_ENCODER_LAYERS = 2
 
 
 class CLAPT(nn.Module):
-    def __init__(self, name_or_path: str) -> None:
+    def __init__(self, name_or_path: str, num_layers: int = NUM_ENCODER_LAYERS) -> None:
         super().__init__()
         self.name_or_path = name_or_path
         self.decoder_with_lm = AutoModelForCausalLM.from_pretrained(name_or_path)
         self.decoder_with_lm.resize_token_embeddings(
             self.decoder_with_lm.config.vocab_size + 1
         )
-
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=self.decoder_with_lm.config.hidden_size,
+            nhead=self.decoder_with_lm.config.num_attention_heads,
+            dim_feedforward=self.decoder_with_lm.config.hidden_size,
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
     def forward(
         self,
@@ -31,7 +37,7 @@ class CLAPT(nn.Module):
         return_dict: Optional[bool] = None,
         cache_position: Optional[T.LongTensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
-        return self.decoder_with_lm(
+        lm_outputs: CausalLMOutputWithPast = self.decoder_with_lm(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -40,10 +46,11 @@ class CLAPT(nn.Module):
             labels=labels,
             use_cache=use_cache,
             output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
+            output_hidden_states=True,
+            return_dict=True,
             cache_position=cache_position,
         )
+        decoder_embeds = lm_outputs.hidden_states
 
 
 def main() -> None:
@@ -60,7 +67,7 @@ def main() -> None:
         ["Hello there sir, are you CLAPT?"], return_tensors="pt", padding="longest"
     )
     inputs = {k: v.to(device) for k, v in inputs.items()}
-    print(model(**inputs))
+    print(model(**inputs)[-1].shape)
 
 
 if __name__ == "__main__":
