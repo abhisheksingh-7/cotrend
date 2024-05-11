@@ -79,6 +79,8 @@ class VectorStore:
         assert (
             vectors.shape[1] == self.dim
         ), "Vectors must have the same dimension as the index"
+        if self.metric == faiss.METRIC_INNER_PRODUCT:
+            faiss.normalize_L2(vectors)
         self.index.add(vectors)
 
     def search(
