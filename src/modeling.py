@@ -20,6 +20,10 @@ class CLAPT(nn.Module):
             d_model=self.decoder_with_lm.config.hidden_size,
             nhead=self.decoder_with_lm.config.num_attention_heads,
             dim_feedforward=self.decoder_with_lm.config.hidden_size,
+            batch_first=True,
+        )
+        self.query_vec = nn.Embedding(
+            1, embedding_dim=self.decoder_with_lm.config.hidden_size
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
@@ -50,7 +54,28 @@ class CLAPT(nn.Module):
             return_dict=True,
             cache_position=cache_position,
         )
-        decoder_embeds = lm_outputs.hidden_states
+        decoder_embeds = lm_outputs.hidden_states[-1]
+        encodings, mask = self.get_encoding_with_query_vec(
+            decoder_embeds, attention_mask
+        )
+        embedding = self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
+        return embedding
+
+    def get_encoding_with_query_vec(
+        self, decoder_embeds: T.Tensor, attention_mask: T.Tensor
+    ) -> Tuple[T.Tensor, Optional[T.Tensor]]:
+        encodings = T.cat(
+            (
+                self.query_vec.weight.unsqueeze(0).expand(len(decoder_embeds), -1, -1),
+                decoder_embeds,
+            ),
+            dim=1,
+        )
+        query_mask = T.ones(
+            (attention_mask.shape[0], 1), dtype=T.bool, device=attention_mask.device
+        )
+        mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
+        return encodings, mask
 
 
 def main() -> None:
@@ -67,7 +92,7 @@ def main() -> None:
         ["Hello there sir, are you CLAPT?"], return_tensors="pt", padding="longest"
     )
     inputs = {k: v.to(device) for k, v in inputs.items()}
-    print(model(**inputs)[-1].shape)
+    print(model(**inputs).shape)
 
 
 if __name__ == "__main__":
