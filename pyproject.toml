@@ -13,6 +13,7 @@ torch = "^2.3.0"
 lightning = "^2.2.4"
 transformers = "^4.40.2"
 faiss-gpu = "^1.7.2"
+typing-extensions = "^4.11.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
