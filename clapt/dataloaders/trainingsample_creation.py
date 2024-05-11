@@ -25,7 +25,6 @@ class AugmentationConfig(pydantic.BaseModel):
     crop_ratio_min: float = 0.1
     crop_ratio_max: float = 0.3
     augmentation_probas: dict[Augmentations, float] = {
-        Augmentations.MASK: 0.15,
         Augmentations.REPLACE: 0.1,
         Augmentations.DELETE: 0.1,
         Augmentations.SHUFFLE: 0.1,
