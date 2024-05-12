@@ -95,7 +95,6 @@ class CLAPT(nn.Module):
                 return_dict=True,
                 cache_position=cache_position,
             )
-<<<<<<< HEAD
         encodings, mask = self.get_encoding_with_query_vec(
             decoder_embeds, attention_mask
         )
@@ -147,12 +146,6 @@ class CLAPT(nn.Module):
         )
         mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
         return encodings, mask
-=======
-            decoder_embeds = lm_outputs.hidden_states[-1]
-        return self.clapt_head(
-            decoder_embeds=decoder_embeds, attention_mask=attention_mask
-        )
->>>>>>> origin/master
 
 
 def main() -> None:
