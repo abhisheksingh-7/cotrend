@@ -1,31 +1,67 @@
 from typing import Optional, List, Union, Tuple
 import torch as T
 import torch.nn as nn
-from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaForCausalLM
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    LlamaForCausalLM,
+    AutoConfig,
+)
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
 NUM_ENCODER_LAYERS = 2
 
 
-class CLAPT(nn.Module):
-    def __init__(self, name_or_path: str, num_layers: int = NUM_ENCODER_LAYERS) -> None:
+class CLAPTHead(nn.Module):
+    def __init__(
+        self, llm_config: AutoConfig, num_layers: int = NUM_ENCODER_LAYERS
+    ) -> None:
         super().__init__()
-        self.name_or_path = name_or_path
-        self.decoder_with_lm = AutoModelForCausalLM.from_pretrained(name_or_path)
-        self.decoder_with_lm.resize_token_embeddings(
-            self.decoder_with_lm.config.vocab_size + 1
-        )
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.decoder_with_lm.config.hidden_size,
-            nhead=self.decoder_with_lm.config.num_attention_heads,
-            dim_feedforward=self.decoder_with_lm.config.hidden_size,
+            d_model=llm_config.hidden_size,
+            nhead=llm_config.num_attention_heads,
+            dim_feedforward=llm_config.hidden_size,
             batch_first=True,
         )
-        self.query_vec = nn.Embedding(
-            1, embedding_dim=self.decoder_with_lm.config.hidden_size
-        )
+        self.query_vec = nn.Embedding(1, embedding_dim=llm_config.hidden_size)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+    def forward(self, decoder_embeds: T.Tensor, attention_mask: T.Tensor) -> T.Tensor:
+        encodings, mask = self._get_encoding_with_query_vec(
+            decoder_embeds, attention_mask
+        )
+        return self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
+
+    def _get_encoding_with_query_vec(
+        self, decoder_embeds: T.Tensor, attention_mask: Optional[T.Tensor]
+    ) -> Tuple[T.Tensor, Optional[T.Tensor]]:
+        encodings = T.cat(
+            (
+                self.query_vec.weight.unsqueeze(0).expand(len(decoder_embeds), -1, -1),
+                decoder_embeds,
+            ),
+            dim=1,
+        )
+        if attention_mask is not None:
+            query_mask = T.ones(
+                (attention_mask.shape[0], 1), dtype=T.bool, device=attention_mask.device
+            )
+            mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
+        else:
+            mask = attention_mask
+        return encodings, mask
+
+
+class CLAPT(nn.Module):
+    def __init__(
+        self,
+        decoder_with_lm: AutoModelForCausalLM,
+        num_layers: int = NUM_ENCODER_LAYERS,
+    ) -> None:
+        super().__init__()
+        self.decoder_with_lm = decoder_with_lm
+        self.clapt_head = CLAPTHead(self.decoder_with_lm.config, num_layers)
 
     def forward(
         self,
@@ -57,26 +93,9 @@ class CLAPT(nn.Module):
                 cache_position=cache_position,
             )
             decoder_embeds = lm_outputs.hidden_states[-1]
-        encodings, mask = self.get_encoding_with_query_vec(
-            decoder_embeds, attention_mask
+        return self.clapt_head(
+            decoder_embeds=decoder_embeds, attention_mask=attention_mask
         )
-        return self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
-
-    def get_encoding_with_query_vec(
-        self, decoder_embeds: T.Tensor, attention_mask: T.Tensor
-    ) -> Tuple[T.Tensor, Optional[T.Tensor]]:
-        encodings = T.cat(
-            (
-                self.query_vec.weight.unsqueeze(0).expand(len(decoder_embeds), -1, -1),
-                decoder_embeds,
-            ),
-            dim=1,
-        )
-        query_mask = T.ones(
-            (attention_mask.shape[0], 1), dtype=T.bool, device=attention_mask.device
-        )
-        mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
-        return encodings, mask
 
 
 def main() -> None:
@@ -87,7 +106,8 @@ def main() -> None:
             "pad_token": "<PAD>",
         }
     )
-    model = CLAPT(MODEL_NAME).to(device)
+    llm = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+    model = CLAPT(llm).to(device)
     print(model)
     inputs = tokenizer(
         ["Hello there sir, are you CLAPT?"], return_tensors="pt", padding="longest"
