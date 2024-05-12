@@ -43,12 +43,14 @@ class TrainingDatapointFactory:
         self,
         config: AugmentationConfig,
         tokenizer: transformers.PreTrainedTokenizer,
+        max_token_length: int = 256,
     ) -> None:
         self.config = config
         self.tokenizer = tokenizer
         self.vocab_size = self.tokenizer.vocab_size
         self.bos = self.tokenizer.bos_token_id
         self.eos = self.tokenizer.eos_token_id
+        self.max_token_length = max_token_length
 
     @validation.validate
     def __call__(self, dp: datamodels.Document) -> datamodels.TrainingDataPoint:
@@ -66,10 +68,16 @@ class TrainingDatapointFactory:
 
     def augment(self, tokens: list[int]) -> KeyQueryTuple:
         q_tokens = randomcrop(
-            tokens, self.config.crop_ratio_min, self.config.crop_ratio_max
+            tokens,
+            self.config.crop_ratio_min,
+            self.config.crop_ratio_max,
+            max_length=self.max_token_length,
         )
         k_tokens = randomcrop(
-            tokens, self.config.crop_ratio_min, self.config.crop_ratio_max
+            tokens,
+            self.config.crop_ratio_min,
+            self.config.crop_ratio_max,
+            max_length=self.max_token_length,
         )
         q_tokens = apply_augmentations(q_tokens, self.config, self.vocab_size)
         q_tokens = add_bos_eos(q_tokens, self.bos, self.eos)
@@ -95,9 +103,11 @@ def apply_augmentations(
     return x
 
 
-def randomcrop(x: list[int], ratio_min: float, ratio_max: float) -> list[int]:
+def randomcrop(
+    x: list[int], ratio_min: float, ratio_max: float, max_length: int
+) -> list[int]:
     ratio = random.uniform(ratio_min, ratio_max)
-    length = int(len(x) * ratio)
+    length = min(int(len(x) * ratio), max_length)
     start = random.randint(0, len(x) - length)
     end = start + length
     crop = x[start:end]
