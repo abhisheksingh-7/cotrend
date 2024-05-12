@@ -32,9 +32,14 @@ terminators = [tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<|eot_id
 
 
 # Set the page configuration for Streamlit
-st.set_page_config(page_title="Llama-3 CLAPT RAG", layout="wide")
+# st.set_page_config(page_title="CoTrEnD", layout="wide")
+# st.markdown(
+#     "<style>body { color: #fff; background-color: #111; }</style>",
+#     unsafe_allow_html=True,
+# )
+st.set_page_config(page_title="CoTrEnD", layout="wide")
 st.markdown(
-    "<style>body { color: #fff; background-color: #111; }</style>",
+    "<style>body { color: #fff; background-color: #111; } .fullScreenFrame > div {height: 100vh !important; display: flex; flex-direction: column; justify-content: space-between;}</style>",
     unsafe_allow_html=True,
 )
 
@@ -47,7 +52,8 @@ def get_answer(question):
             "content": "You are a trained medical doctor and biomedical expert. Answer the user's question as such.",
         }
     ]
-    document_text = vecstore.search(question, k=1)[0][0].text
+    match_ = vecstore.search(question, k=1)[0][0]
+    document_text = f"Title: {match_.title}\nAbstract: {match_.abstract}\n\n"
     user_message = {
         "role": "user",
         "content": "Context: " + document_text + "\nQuestion: " + question,
@@ -72,40 +78,38 @@ def get_answer(question):
     return output
 
 
-def fetch_research_abstract(entity):
-    match_ = vecstore.search(entity, k=1)[0][0]
-    return f"Title: {match_.title}\n\n{match_.abstract}"
+def fetch_research_abstract(entity) -> str:
+    matches, _ = vecstore.search(entity, k=3)
+    result = ""
+    for match_ in matches:
+        result += f"Title: {match_.title}\nAbstract: {match_.abstract}\n\n"
+    return result
 
 
 def main():
     """Main function to run the Streamlit app."""
-    # Sidebar settings
-    st.sidebar.title("Q&A Settings")
-    st.sidebar.info(
-        "This app uses your own language model to answer questions based on the provided context."
-    )
+    col1, col2 = st.columns((1, 2))
 
-    # Main content area
-    st.title("Llama-3-Clapt RAG Question Answering")
-    st.write("Type your question.")
+    with col1:
+        st.image("clapt/clapt_rag/static/cotrend.webp", width=300)
+        # st.image("path_to_your_logo.png", width=300)  # Adjust path and size as needed
+        st.write("Encoders that embed the final hidden state from large decoder models")
 
-    question = st.text_input("Question", "")
+    with col2:
+        st.title("Contrastively Trained Encodings from Decoder")
+        question = st.text_input("Ask a Biomedical Question")
+        if st.button("Get Answer", key="1"):
+            with st.spinner("Browsing PubMed..."):
+                answer = get_answer(question)
+                st.write("**Answer:**", answer)
 
-    # Button to get the answer
-    if st.button("Get Answer"):
-        with st.spinner("Searching for answers..."):
-            answer = get_answer(question)
-            st.write("**Answer:**", answer)
-
-    entity_name = st.text_input(
-        "Medical Entity", "Enter a medical entity like fever or cough"
-    )
-    # Button and expander for research abstract
-    if st.button("Fetch Abstract"):
-        with st.spinner("Fetching research abstract..."):
-            abstract = fetch_research_abstract(entity_name)
-            expander = st.expander("Research Abstract for " + entity_name)
-            expander.write(abstract)
+        entity_name = st.text_input(
+            "Enter a medical entity to fetch research abstracts against"
+        )
+        if st.button("Fetch Abstract", key="2"):
+            with st.spinner("Fetching research abstract..."):
+                abstract = fetch_research_abstract(entity_name)
+                st.write("**Abstract for", entity_name + ":**", abstract)
 
 
 if __name__ == "__main__":
