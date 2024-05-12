@@ -18,7 +18,7 @@ Role = Literal["system", "user", "assistant"]
 if "vecstore" not in st.session_state.keys():
 
     def load_vecstore():
-        with open("/data/clapt-vecstore-large.pkl", "rb") as f:
+        with open("/data/clapt-vecstore-big-2.pkl", "rb") as f:
             vec = pickle.load(f)
         return vec
 

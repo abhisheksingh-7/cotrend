@@ -1,6 +1,7 @@
 import copy
 from lightning.fabric.utilities import rank_zero
 from typing import Tuple
+import numpy as np
 import os
 import datetime
 from transformers import AutoTokenizer
@@ -18,6 +19,7 @@ from transformers import AutoConfig, AutoModelForCausalLM
 import ray.train.lightning
 import ray.train.torch
 from pytorch_metric_learning import miners, losses
+from torch.utils.data.sampler import SubsetRandomSampler
 
 
 from clapt import datapipelining, modeling
@@ -250,7 +252,17 @@ def train() -> None:
         else "/nfs/scratch/data/sap_synonyms.txt"
     )
     dataset = torch_dataloading.SapBertDataset(DATA_PATH)
-    batch_size = 64
+    validation_split = 0.2
+    dataset_size = len(dataset)
+    indices = list(range(dataset_size))
+    split = int(np.floor(validation_split * dataset_size))
+    np.random.seed(211)
+    np.random.shuffle(indices)
+    train_indices, val_indices = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_indices)
+    valid_sampler = SubsetRandomSampler(val_indices)
+
+    batch_size = 32
     num_nodes = 4
     tokenizer = AutoTokenizer.from_pretrained(modeling.MODEL_NAME)
     tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -258,8 +270,11 @@ def train() -> None:
     collate_fn = functools.partial(
         torch_dataloading.collate_fn_batch_encoding, tokenizer=tokenizer
     )
-    dataloader = torch_data.DataLoader(
-        dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=True
+    train_loader = T.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=train_sampler, collate_fn=collate_fn
+    )
+    validation_loader = T.utils.data.DataLoader(
+        dataset, batch_size=batch_size, sampler=valid_sampler, collate_fn=collate_fn
     )
     model = ClaptSap(modeling.MODEL_NAME)
     run_name = f"clapt-{datetime.datetime.now().strftime('%Y-%m-%d:%H:%M:%S')}"
@@ -281,7 +296,9 @@ def train() -> None:
     )
     wandb_logger.watch(model=model)
 
-    trainer.fit(model=model, train_dataloaders=dataloader)
+    trainer.fit(
+        model=model, train_dataloaders=train_loader, val_dataloaders=validation_loader
+    )
 
 
 if __name__ == "__main__":
