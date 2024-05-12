@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import unicodedata
 import uuid
 from typing import Union, Optional
 
@@ -14,6 +15,42 @@ DEFAULT_DB_PATH = constants.REPO_ROOT / "data/wikipedia/docs.db"
 QUERY = """SELECT * FROM documents"""
 SAMPLE_QUERY = """SELECT * FROM documents
                 LIMIT {k}"""
+
+
+class WikiSlicer:
+    def __init__(
+        self,
+        path_to_wikipedia_db: Union[str, os.PathLike] = DEFAULT_DB_PATH,
+    ) -> None:
+        self.conn = sqlite3.connect(path_to_wikipedia_db)
+        self._keys = self._load_keys()
+
+    def __getitem__(self, idx: int) -> datamodels.Document:
+        cursor = self.conn.cursor()
+        id_ = self._keys[idx]
+        cursor.execute(
+            "SELECT text FROM documents WHERE id = ?",
+            (unicodedata.normalize("NFD", id_),),
+        )
+        unparsed_result, *_ = cursor.fetchone()
+        result = datamodels.Document(
+            content=unparsed_result,
+            doc_id=uuid.uuid4(),
+            source=datamodels.Sources.WIKIPEDIA,
+            title=id_,
+        )
+        cursor.close()
+        return result
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def _load_keys(self) -> list[str]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id FROM documents")
+        results = cursor.fetchall()
+        cursor.close()
+        return [k for (k,) in results]
 
 
 def create_wikipedia_dataset(
@@ -53,5 +90,6 @@ def _create_raw_wikipedia_dataset(
 
 
 if __name__ == "__main__":
+    a = WikiSlicer()[2]
     dataset = _create_raw_wikipedia_dataset()
     dataset.take(5)
