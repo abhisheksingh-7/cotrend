@@ -40,3 +40,7 @@ test: # Runs automated tests using pytest.
 .PHONY: linecount
 linecount: # Counts the number of lines of Python code in the src/ directory.
 	find src/ -name '*.py' -exec wc -l {} +
+
+.PHONY: ui
+ui:
+	poetry run streamlit run clapt/clapt_rag/app.py --server.fileWatcherType none

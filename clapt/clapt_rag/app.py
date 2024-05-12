@@ -30,16 +30,6 @@ tokenizer: AutoTokenizer = vecstore.tokenizer
 terminators = [tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<|eot_id|>")]
 
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "Answer the user's question as a trained medical doctor and biomedical expert.",
-        ),
-        ("user", "{input}"),
-    ]
-)
-
 # Set the page configuration for Streamlit
 st.set_page_config(page_title="Llama-3 CLAPT RAG", layout="wide")
 st.markdown(
