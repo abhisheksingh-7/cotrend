@@ -4,7 +4,7 @@
         <img alt="CoTrEnD Logo" src="static/cotrend.webp" style="height: 256px;">
     </a>
 </p>
-<h1 align="center" style="font-size: 2.5em; margin: 0; padding: 0;">CoTrEnD</h1>
+<h1 align="center" style="font-size: 2.5em; margin: 0; padding: 0;">Contrastively Trained Encodings from Decoder</h1>
 <p align="center" style="font-size: 1.2em; font-weight: 300; color: #555; margin: 0;">
     Extending Decoders with an Integrated Encoder
 </p>
@@ -24,7 +24,7 @@ The CoTrEnD architecture is a simple extension of the decoder-only model. The en
 </p>
 
 
-## Dream Team
+## Team
 <div style="margin-bottom: 20px;">
     <h4 style="margin-bottom: 5px;">Abhishek Singh</h4>
     <div style="display: flex; align-items: center;">
