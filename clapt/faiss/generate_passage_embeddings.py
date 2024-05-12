@@ -28,6 +28,8 @@ from transformers import (
     AutoModelForCausalLM,
 )
 
+MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
+
 
 def embed_passages(args, passages, model, tokenizer):
     total = 0
@@ -71,9 +73,6 @@ def embed_passages(args, passages, model, tokenizer):
 
     allembeddings = torch.cat(allembeddings, dim=0).numpy()
     return allids, allembeddings
-
-
-MODEL_NAME = "meta-llama/Meta-Llama-3-8B-Instruct"
 
 
 def main(args) -> None:
