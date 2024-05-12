@@ -1,13 +1,17 @@
+from typing import Literal
 import streamlit as st
 import pydantic
 import pickle
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain import output_parsers
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-class Output(pydantic.BaseModel):
-    output: str
+from clapt.clapt_rag.generate_vecstore import VectorStore
+
+
+Role = Literal["system", "user", "assistant"]
 
 
 if "vecstore" not in st.session_state.keys():
@@ -19,19 +23,22 @@ if "vecstore" not in st.session_state.keys():
 
     st.session_state["vecstore"] = load_vecstore()
 
-vecstore = st.session_state["vecstore"]
+vecstore: VectorStore = st.session_state["vecstore"]
+
+tokenizer: AutoTokenizer = vecstore.tokenizer
+
+terminators = [tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<|eot_id|>")]
 
 
 prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "Answer the user's question as a trained medical doctor."),
+        (
+            "system",
+            "Answer the user's question as a trained medical doctor and biomedical expert.",
+        ),
         ("user", "{input}"),
     ]
 )
-output_parser: output_parsers.PydanticOutputParser[Output] = (
-    output_parsers.PydanticOutputParser(pydantic_object=Output)
-)
-
 
 # Set the page configuration for Streamlit
 st.set_page_config(page_title="Llama-3 CLAPT RAG", layout="wide")
@@ -43,8 +50,32 @@ st.markdown(
 
 def get_answer(question):
     """Get answer for the question using LangChain."""
-    formatted_prompt = prompt.format_prompt(input=question).to_string()
-    return formatted_prompt
+    # formatted_prompt = prompt.format_prompt(input=question).to_string()
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a trained medical doctor and biomedical expert. Answer the user's question as such.",
+        }
+    ]
+    user_message = {"role": "user", "content": question}
+    messages.append(user_message)
+    input_ids = tokenizer.apply_chat_template(
+        messages, add_generation_prompt=True, return_tensors="pt"
+    ).to(vecstore.device)
+    model = vecstore.embedding_model.decoder_with_lm
+    outputs = model.generate(
+        input_ids,
+        max_new_tokens=256,
+        eos_token_id=terminators,
+        do_sample=True,
+        temperature=0.6,
+        top_p=0.9,
+    )
+    response = outputs[0][input_ids.shape[-1] :]
+    output = tokenizer.decode(response, skip_special_tokens=True)
+    print(output)
+
+    return output
 
 
 def fetch_research_abstract(entity):
