@@ -27,7 +27,7 @@ qa_chain = prompt | chat_model | output_parser
 
 
 # Set the page configuration for Streamlit
-st.set_page_config(page_title="CLAPT RAG", layout="wide")
+st.set_page_config(page_title="Llama-3 CLAPT RAG", layout="wide")
 st.markdown(
     "<style>body { color: #fff; background-color: #111; }</style>",
     unsafe_allow_html=True,
@@ -36,7 +36,12 @@ st.markdown(
 
 def get_answer(question, context):
     """Get answer for the question using LangChain."""
-    return qa_chain.run(question=question, context=context)
+    return qa_chain.invoke(input=question)
+
+
+def fetch_research_abstract(entity):
+    abstract = "Simulated abstract content for " + entity
+    return abstract
 
 
 def main():
@@ -48,7 +53,7 @@ def main():
     )
 
     # Main content area
-    st.title("CLAPT RAG")
+    st.title("Llama-3 CLAPT RAG")
     st.write("Type your question.")
 
     # Context area
@@ -60,12 +65,21 @@ def main():
     st.session_state["context"] = context
 
     question = st.text_input("Question", "What is Streamlit?")
-
     # Button to get the answer
     if st.button("Get Answer"):
         with st.spinner("Searching for answers..."):
             answer = get_answer(question, context)
             st.write("**Answer:**", answer)
+
+    entity_name = st.text_input(
+        "Medical Entity", "Enter a medical entity like fever or cough"
+    )
+    # Button and expander for research abstract
+    if st.button("Fetch Abstract"):
+        with st.spinner("Fetching research abstract..."):
+            abstract = fetch_research_abstract(entity_name)
+            expander = st.expander("Research Abstract for " + entity_name)
+            expander.write(abstract)
 
 
 if __name__ == "__main__":
