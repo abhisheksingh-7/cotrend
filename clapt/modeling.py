@@ -65,6 +65,7 @@ class CLAPT(nn.Module):
         super().__init__()
         self.decoder_with_lm = decoder_with_lm
         self.clapt_head = CLAPTHead(self.decoder_with_lm.config, num_layers)
+        self.num_encoder = num_layers
 
     def forward(
         self,
@@ -95,6 +96,8 @@ class CLAPT(nn.Module):
                 return_dict=True,
                 cache_position=cache_position,
             )
+        if self.num_encoder < 1:
+            return decoder_embeds
         encodings, mask = self.get_encoding_with_query_vec(
             decoder_embeds, attention_mask
         )
