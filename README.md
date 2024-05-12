@@ -1,14 +1,7 @@
-# Contrastively Trained Encodings from Decoder
-Cerebral Valley Llama-3 Hackathon 2024 submission.
 
----
-![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
-![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
-
----
 <p align="center">
     <a href="#readme">
-        <img alt="CoTrEnD Logo" src="clapt/clapt_rag/static/cotrend.webp" style="height: 256px;">
+        <img alt="CoTrEnD Logo" src="static/cotrend.webp" style="height: 256px;">
     </a>
 </p>
 <h1 align="center" style="font-size: 2.5em; margin: 0; padding: 0;">CoTrEnD</h1>
@@ -21,6 +14,14 @@ This repo holds the code for training encoders that embed the final hidden state
 ## Motivation
 
 ## Architecture
+The CoTrEnD architecture is a simple extension of the decoder-only model. The encoder is trained to embed the final hidden state of the decoder. The encoder is trained using a contrastive loss, which encourages the encoder to embed similar hidden states for similar inputs, and dissimilar hidden states for dissimilar inputs.
+
+<p align="center">
+    <a href="#readme">
+        <img alt="CoTrEnD Logo" src="static/cotrend-architecture.png" style="height: 256px;">
+    </a>
+</p>
+</p>
 
 
 ## Dream Team
