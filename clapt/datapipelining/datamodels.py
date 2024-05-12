@@ -6,6 +6,8 @@ from typing import Optional
 import pydantic
 import torch
 
+from clapt.datapipelining import validation
+
 
 class Sources(str, enum.Enum):
     WIKIPEDIA = "wikipedia"
@@ -18,9 +20,6 @@ class Document(pydantic.BaseModel):
     content: str
 
 
-TENSOR_VALIDATOR = pydantic.BeforeValidator(torch.tensor)
-
-
 class TrainingDataPoint(Document):
     """One training data point for the model"""
 
@@ -31,10 +30,10 @@ class TrainingDataPoint(Document):
 class TrainingBatch(pydantic.BaseModel):
     """One batch of training data for the model"""
 
-    key_tensor: Annotated[torch.Tensor, TENSOR_VALIDATOR]  # (batch_size, seq_len)
-    key_mask: Annotated[torch.Tensor, TENSOR_VALIDATOR]  # (batch_size, seq_len)
-    query_tensor: Annotated[torch.Tensor, TENSOR_VALIDATOR]  # (batch_size, seq_len)
-    query_mask: Annotated[torch.Tensor, TENSOR_VALIDATOR]  # (batch_size, seq_len)
+    key_tensor: Annotated[torch.Tensor, validation.TENSOR_VALIDATOR]
+    key_mask: Annotated[torch.Tensor, validation.TENSOR_VALIDATOR]
+    query_tensor: Annotated[torch.Tensor, validation.TENSOR_VALIDATOR]
+    query_mask: Annotated[torch.Tensor, validation.TENSOR_VALIDATOR]
 
     model_config = pydantic.ConfigDict(arbitrary_types_allowed=True)
 

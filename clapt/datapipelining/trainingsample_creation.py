@@ -12,6 +12,7 @@ import pydantic
 import transformers
 from typing_extensions import Self
 
+from clapt import modeling
 from clapt.datapipelining import datamodels, validation
 
 
@@ -79,7 +80,9 @@ class TrainingSampleFactory:
 
     @classmethod
     def from_model_name(
-        cls, model_name: str, config: AugmentationConfig = AugmentationConfig()
+        cls,
+        model_name: str = modeling.MODEL_NAME,
+        config: AugmentationConfig = AugmentationConfig(),
     ) -> Self:
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
         return cls(config, cast(transformers.PreTrainedTokenizer, tokenizer))

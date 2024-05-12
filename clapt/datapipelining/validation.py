@@ -7,6 +7,7 @@ from typing import Any, Callable, TypeVar, overload
 
 import numpy as np
 import pydantic
+import torch
 
 
 _Self = Any
@@ -71,3 +72,12 @@ def validate(f: Callable) -> Callable:
         return result.model_dump()
 
     return decorator
+
+
+def validate_tensor(v: torch.Tensor) -> torch.Tensor:
+    if not isinstance(v, torch.Tensor):
+        v = torch.tensor(v)
+    return v
+
+
+TENSOR_VALIDATOR = pydantic.BeforeValidator(validate_tensor)

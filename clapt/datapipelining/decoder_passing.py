@@ -1,14 +1,13 @@
-from typing import Iterable, NamedTuple
 import torch
 
 from clapt import modeling
-from clapt.datapipelining import datamodels, validation
+from clapt.datapipelining import datamodels, padding, validation
 
 
 class LlamaLastHiddenStateExtractor:
     def __init__(
         self,
-        model_name: str,
+        model_name: str = modeling.MODEL_NAME,
         decoder_device: torch.device = torch.device("cuda"),
         output_device: torch.device = torch.device("cpu"),
     ) -> None:
@@ -49,34 +48,14 @@ class LlamaLastHiddenStateExtractor:
 def collate_batch(
     batch: list[datamodels.TrainingDataPoint],
 ) -> datamodels.TrainingBatch:
-    keys = _collate(dp.key for dp in batch)
-    queries = _collate(dp.query for dp in batch)
+    keys = padding.collate_samples(dp.key for dp in batch)
+    queries = padding.collate_samples(dp.query for dp in batch)
     return datamodels.TrainingBatch(
         key_tensor=keys.input_ids,
         key_mask=keys.attention_mask,
         query_tensor=queries.input_ids,
         query_mask=queries.attention_mask,
     )
-
-
-class MaskedInputs(NamedTuple):
-    input_ids: torch.Tensor
-    attention_mask: torch.Tensor
-
-
-def _collate(tensors: Iterable[list[int]]) -> MaskedInputs:
-    tensors = list(tensors)
-    max_len = max(len(t) for t in tensors)
-    attention_mask = torch.ones((len(tensors), max_len))
-    for i, t in enumerate(tensors):
-        attention_mask[i, len(t) :] = 0
-        tensors[i] = _pad(t, max_len)
-    return MaskedInputs(torch.tensor(tensors), attention_mask)
-
-
-def _pad(input_ids: list[int], max_len: int) -> list[int]:
-    pad_len = max_len - len(input_ids)
-    return input_ids + [0] * pad_len
 
 
 if __name__ == "__main__":
@@ -89,7 +68,7 @@ if __name__ == "__main__":
         wikipedia_loading.create_wikipedia_dataset()
         .map(
             trainingsample_creation.TrainingSampleFactory.from_model_name(MODEL_NAME),
-            concurrency=1,
+            concurrency=8,
         )
         .map_batches(
             LlamaLastHiddenStateExtractor(MODEL_NAME),
