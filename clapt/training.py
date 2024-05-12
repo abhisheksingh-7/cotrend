@@ -1,8 +1,10 @@
 import copy
+from lightning.fabric.utilities import rank_zero
 from typing import Tuple
 import os
 import datetime
 from transformers import AutoTokenizer
+from lightning.pytorch.callbacks import ModelCheckpoint
 import functools
 import lightning as L
 import pydantic
@@ -210,6 +212,26 @@ class MoCo(L.LightningModule):
         )
 
 
+class SaveHead(L.Callback):
+    def __init__(self, inference_checkpoint_path: str) -> None:
+        super().__init__()
+        self.inference_checkpoint_path = inference_checkpoint_path
+        if rank_zero._get_rank() == 0:
+            os.makedirs(self.inference_checkpoint_path, exist_ok=True)
+
+    def on_train_epoch_end(
+        self,
+        trainer: L.Trainer,
+        pl_module: L.LightningModule,
+    ) -> None:
+        if trainer.is_global_zero:
+            encoder = pl_module.encoder
+            T.save(
+                encoder.state_dict(),
+                f"{self.inference_checkpoint_path}/checkpoint_epoch_{trainer.current_epoch}_step_{trainer.global_step}.pth",
+            )
+
+
 @T.no_grad()
 def gather_nograd(x: T.Tensor) -> T.Tensor:
     if not dist.is_initialized():
@@ -246,6 +268,7 @@ def train() -> None:
         project="llama-hackathon",
         name=run_name,
     )
+    model_checkpoint = ModelCheckpoint(dirpath="/nfs/scratch/data/clapt/full")
     trainer = L.Trainer(
         max_epochs=10,
         strategy="ddp",
@@ -254,6 +277,7 @@ def train() -> None:
         logger=wandb_logger,
         default_root_dir="/nfs/scratch/data/clapt",
         log_every_n_steps=25,
+        callbacks=[SaveHead("/nfs/scratch/data/clapt/head"), model_checkpoint],
     )
     wandb_logger.watch(model=model)
 
