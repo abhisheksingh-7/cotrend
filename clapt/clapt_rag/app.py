@@ -1,13 +1,7 @@
 from typing import Literal
 import streamlit as st
-import pydantic
 import pickle
-
-from langchain_core.prompts import ChatPromptTemplate
-from clapt.clapt_rag import generate_vecstore
-from langchain import output_parsers
-from transformers import AutoTokenizer, AutoModelForCausalLM
-
+from transformers import AutoTokenizer
 
 from clapt.clapt_rag.generate_vecstore import VectorStore
 
@@ -31,12 +25,6 @@ tokenizer: AutoTokenizer = vecstore.tokenizer
 terminators = [tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<|eot_id|>")]
 
 
-# Set the page configuration for Streamlit
-# st.set_page_config(page_title="CoTrEnD", layout="wide")
-# st.markdown(
-#     "<style>body { color: #fff; background-color: #111; }</style>",
-#     unsafe_allow_html=True,
-# )
 st.set_page_config(page_title="CoTrEnD", layout="wide")
 st.markdown(
     "<style>body { color: #fff; background-color: #111; } .fullScreenFrame > div {height: 100vh !important; display: flex; flex-direction: column; justify-content: space-between;}</style>",
@@ -92,8 +80,7 @@ def main():
 
     with col1:
         st.image("clapt/clapt_rag/static/cotrend.webp", width=300)
-        # st.image("path_to_your_logo.png", width=300)  # Adjust path and size as needed
-        st.write("Encoders that embed the final hidden state from large decoder models")
+        st.write("Extending Decoders with an Integrated Encoder")
 
     with col2:
         st.title("Contrastively Trained Encodings from Decoder")
