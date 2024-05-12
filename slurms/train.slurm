@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=clapt_llama                                          # Job name
-#SBATCH --nodes=1                                                       # Request k node(s)
+#SBATCH --nodes=4                                                       # Request k node(s)
 #SBATCH --gres=gpu:8                                                    # Request 8 GPUs per node
 #SBATCH --ntasks-per-node=8                                             # Launch 8 tasks on the node, one per GPU
 #SBATCH --partition=training-compute                                    # Specify the GPU partition

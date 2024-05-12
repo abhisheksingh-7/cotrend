@@ -1,22 +1,83 @@
 import copy
-from typing import Any, Dict, List, Optional, Tuple
-
+from typing import Tuple
+import os
+import datetime
+from transformers import AutoTokenizer
+import functools
 import lightning as L
 import pydantic
-import ray.train
 import torch as T
 import torch.distributed as dist
 import torch.nn as nn
 from loguru import logger
+from lightning.pytorch import loggers
 from torch.utils import data as torch_data
 from transformers import AutoConfig, AutoModelForCausalLM
+import ray.train.lightning
+import ray.train.torch
+from pytorch_metric_learning import miners, losses
+
 
 from clapt import datapipelining, modeling
 from clapt.datapipelining import datamodels, torch_dataloading
-import ray.train.lightning
-import ray.train.torch
 
 TRAIN_SHARD = "train"
+
+
+class ClaptSap(L.LightningModule):
+    def __init__(self, base_model_id: str) -> None:
+        super().__init__()
+        self.base_model_id = base_model_id
+        self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
+        self.base_llm.eval()
+        self.llm_config = AutoConfig.from_pretrained(base_model_id)
+        self.encoder = modeling.CLAPTHead(self.llm_config)
+        for param in self.base_llm.parameters():
+            param.requires_grad = False
+        self.miner = miners.TripletMarginMiner(0.2, "all")
+        self.loss = losses.MultiSimilarityLoss(alpha=1, beta=60, base=0.5)
+
+    def training_step(
+        self,
+        batch: Tuple[T.Tensor, ...],
+        batch_idx: int,
+    ) -> T.Tensor | None:
+        query_toks1, query_toks2, labels = batch
+        loss = self(query_toks1, query_toks2, labels)
+        self.log(
+            "train/loss",
+            loss.item(),
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        return loss
+
+    def forward(
+        self, query_toks1: T.Tensor, query_toks2: T.Tensor, labels: T.Tensor
+    ) -> T.Tensor:
+        term1_hidden = self.base_llm(
+            **query_toks1, output_hidden_states=True
+        ).hidden_states[-1]
+        term2_hidden = self.base_llm(
+            **query_toks2, output_hidden_states=True
+        ).hidden_states[-1]
+        query_embed1 = nn.functional.normalize(
+            self.encoder(term1_hidden, query_toks1["attention_mask"]), dim=-1
+        )
+        query_embed2 = nn.functional.normalize(
+            self.encoder(term2_hidden, query_toks2["attention_mask"]), dim=-1
+        )
+        query_embed = T.cat([query_embed1, query_embed2], dim=0)
+        labels = T.cat([labels, labels], dim=0)
+        hard_pairs = self.miner(query_embed, labels)
+        return self.loss(query_embed, labels, hard_pairs)
+
+    def configure_optimizers(self):
+        return T.optim.AdamW(
+            self.parameters(), lr=5e-5, betas=[0.9, 0.999], eps=1e-8, weight_decay=0.01
+        )
 
 
 class MoCo(L.LightningModule):
@@ -31,7 +92,6 @@ class MoCo(L.LightningModule):
         super().__init__()
         self.base_model_id = base_model_id
         self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
-        print(self.base_llm)
         self.llm_config = AutoConfig.from_pretrained(base_model_id)
         self.queue_size = queue_size
         self.momentum = momentum
@@ -95,12 +155,21 @@ class MoCo(L.LightningModule):
     ) -> T.Tensor | None:
         batch = pydantic.TypeAdapter(datamodels.TrainingBatch).validate_python(batch)
         loss = self(batch)
+        self.log(
+            "train/loss",
+            loss.item(),
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
         return loss
 
     def forward(
         self,
         batch: datamodels.TrainingBatch,
     ) -> Tuple[T.Tensor, ...]:
+        self.base_llm.eval()
         batch = pydantic.TypeAdapter(datamodels.TrainingBatch).validate_python(batch)
         key_tensor = batch.key_tensor
         key_mask = batch.key_mask
@@ -108,13 +177,15 @@ class MoCo(L.LightningModule):
         query_mask = batch.query_mask
         with T.no_grad():
             key_tensor = self.base_llm(
-                input_ids=key_tensor, attention_mask=key_mask
+                input_ids=key_tensor, attention_mask=key_mask, output_hidden_states=True
             ).hidden_states[-1]
             query_tensor = self.base_llm(
-                input_ids=query_tensor, attention_mask=query_mask
+                input_ids=query_tensor,
+                attention_mask=query_mask,
+                output_hidden_states=True,
             ).hidden_states[-1]
         bsz = query_tensor.size(0)
-        q = self.encoder_q(key_tensor, key_mask)
+        q = self.encoder_q(query_tensor, query_mask)
 
         with T.no_grad():
             self._momentum_update_key_encoder()
@@ -122,14 +193,15 @@ class MoCo(L.LightningModule):
             if not self.encoder_k.training and not self.moco_train_mode_encoder_k:
                 self.encoder_k.eval()
 
-            k = self.encoder_k(query_tensor, query_mask)
+            k = self.encoder_k(key_tensor, key_mask)
+        q = T.nn.functional.normalize(q, dim=-1)
+        k = T.nn.functional.normalize(k, dim=-1)
         logits = self._compute_logits(q, k) / self.temperature
         labels = T.zeros(bsz, dtype=T.long).cuda()
         loss = nn.functional.cross_entropy(
             logits, labels, label_smoothing=self.label_smoothing
         )
         self._dequeue_and_enqueue(k)
-        print(loss)
         return loss
 
     def configure_optimizers(self):
@@ -150,20 +222,41 @@ def gather_nograd(x: T.Tensor) -> T.Tensor:
 
 
 def train() -> None:
-    dataset = torch_dataloading.MocoDataset.from_model_name(modeling.MODEL_NAME)
-    dataloader = torch_data.DataLoader(
-        dataset, batch_size=4, collate_fn=torch_dataloading.collate_batch
+    DATA_PATH = (
+        "/data/sap_synonyms.txt"
+        if os.uname().nodename == "koozie-00"
+        else "/nfs/scratch/data/sap_synonyms.txt"
     )
-    model = MoCo(
-        modeling.MODEL_NAME,
-        queue_size=16 * 3500,
-        momentum=0.999,
-        temperature=1.0,
-        label_smoothing=0.0,
+    dataset = torch_dataloading.SapBertDataset(DATA_PATH)
+    batch_size = 64
+    num_nodes = 4
+    tokenizer = AutoTokenizer.from_pretrained(modeling.MODEL_NAME)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    collate_fn = functools.partial(
+        torch_dataloading.collate_fn_batch_encoding, tokenizer=tokenizer
+    )
+    dataloader = torch_data.DataLoader(
+        dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=True
+    )
+    model = ClaptSap(modeling.MODEL_NAME)
+    run_name = f"clapt-{datetime.datetime.now().strftime('%Y-%m-%d:%H:%M:%S')}"
+
+    wandb_logger = loggers.WandbLogger(
+        project="llama-hackathon",
+        name=run_name,
     )
     trainer = L.Trainer(
         max_epochs=10,
+        strategy="ddp",
+        num_nodes=num_nodes,
+        accelerator="gpu",
+        logger=wandb_logger,
+        default_root_dir="/nfs/scratch/data/clapt",
+        log_every_n_steps=25,
     )
+    wandb_logger.watch(model=model)
+
     trainer.fit(model=model, train_dataloaders=dataloader)
 
 

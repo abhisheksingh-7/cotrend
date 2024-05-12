@@ -11,7 +11,11 @@ from typing_extensions import Annotated
 from clapt import constants
 from clapt.datapipelining import datamodels, validation
 
-DEFAULT_DB_PATH = constants.REPO_ROOT / "data/wikipedia/docs.db"
+DEFAULT_DB_PATH = (
+    constants.REPO_ROOT / "data/wikipedia/docs.db"
+    if os.uname().nodename == "koozie-00"
+    else "/nfs/scratch/data/wiki-docs.db"
+)
 QUERY = """SELECT * FROM documents"""
 SAMPLE_QUERY = """SELECT * FROM documents
                 LIMIT {k}"""
