@@ -24,11 +24,7 @@ if "vecstore" not in st.session_state.keys():
 
     st.session_state["vecstore"] = load_vecstore()
 
-<<<<<<< HEAD
-vecstore: generate_vecstore.VectorStore = st.session_state["vecstore"]
-=======
 vecstore: VectorStore = st.session_state["vecstore"]
->>>>>>> master
 
 tokenizer: AutoTokenizer = vecstore.tokenizer
 
