@@ -11,7 +11,7 @@ import transformers
 
 def create_trainingdatasets(
     MODEL_NAME: str = modeling.MODEL_NAME,
-) -> tuple[ray.data.Dataset, ...]:
+) -> ray.data.Dataset:
     return (
         wikipedia_loading.create_wikipedia_dataset()
         .map(
