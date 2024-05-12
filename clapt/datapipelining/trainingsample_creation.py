@@ -12,7 +12,8 @@ import pydantic
 import transformers
 from typing_extensions import Self
 
-from clapt.dataloaders import datamodels, validation
+from clapt import modeling
+from clapt.datapipelining import datamodels, validation
 
 
 class Augmentations(str, enum.Enum):
@@ -36,7 +37,7 @@ class KeyQueryTuple(NamedTuple):
     query: list[int]
 
 
-class TrainingDatapointFactory:
+class TrainingSampleFactory:
     """Create a training data point from a document."""
 
     def __init__(
@@ -86,7 +87,11 @@ class TrainingDatapointFactory:
         return KeyQueryTuple(key=k_tokens, query=q_tokens)
 
     @classmethod
-    def from_model_name(cls, model_name: str, config: AugmentationConfig) -> Self:
+    def from_model_name(
+        cls,
+        model_name: str = modeling.MODEL_NAME,
+        config: AugmentationConfig = AugmentationConfig(),
+    ) -> Self:
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
         return cls(config, cast(transformers.PreTrainedTokenizer, tokenizer))
 
@@ -156,28 +161,3 @@ def add_bos_eos(
     if eos_token_id is not None:
         x = x + [eos_token_id]
     return x
-
-
-if __name__ == "__main__":
-    from clapt.dataloaders import wikipedia_loading
-
-    dpfactory = TrainingDatapointFactory.from_model_name(
-        "meta-llama/Meta-Llama-3-8B", AugmentationConfig()
-    )
-    dataset = wikipedia_loading.create_wikipedia_dataset(load_k_rows=100)
-    print(dataset.count())
-    datapoint = dataset.take(10)[-1]
-    processed_dp = dpfactory(datapoint)
-    key = processed_dp["key"]
-    query = processed_dp["query"]
-    import torch as T
-    from clapt import modeling
-
-    key = T.tensor(key)
-    query = T.tensor(query)
-    print(key)
-
-    device = T.device("cuda:0")
-    model = modeling.CLAPT(modeling.MODEL_NAME).to(device)
-    out = model(input_ids=key[None, :].to(device))
-    print(out)
