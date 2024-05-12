@@ -6,12 +6,12 @@ import torch.nn as nn
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from clapt import modeling
-from langchain.vectorstores import DocArrayInMemorySearch
 
 
 class Document(pydantic.BaseModel):
     id_: int
-    text: str
+    title: str
+    abstract: str
 
     def __hash__(self) -> int:
         return hash((hash(self.id_), hash(self.text)))
@@ -36,15 +36,20 @@ class VectorStore(nn.Module):
         for doc in documents:
             self._index_to_doc[self._indx] = doc
             self._indx += 1
-        texts = [doc.text for doc in documents]
+        texts = [doc.title for doc in documents]
         embeddings = []
-        for b in batch(texts, batch_size=8):
-            tokens = self.tokenizer(b, return_tensors="pt", padding="longest")
-            tokens = {k: v.to(self.device) for k, v in tokens.items()}
-            output = self.embedding_model(**tokens)
-            embeddings.append(output)
-        self.embeddings = torch.cat(embeddings)
-        return embeddings
+        i = 0
+        bs = 6
+        with T.inference_mode():
+            for b in batch(texts, batch_size=bs):
+                print((bs * i) / len(texts))
+                i += 1
+                tokens = self.tokenizer(b, return_tensors="pt", padding="longest")
+                tokens = {k: v.to(self.device) for k, v in tokens.items()}
+                output = self.embedding_model(**tokens)
+                embeddings.append(output)
+            self.embeddings = torch.cat(embeddings)
+            return embeddings
 
     def search(self, text: str, k: int = 3) -> List[Document]:
         tokens = self.tokenizer(text, return_tensors="pt", padding="longest")
@@ -52,7 +57,7 @@ class VectorStore(nn.Module):
         embed = self.embedding_model(**tokens)
         scores = self.embeddings @ embed.T
         result = T.topk(scores, k=k, dim=0)
-        docs = [self._index_to_doc[i] for i in result.indices.tolist()[0]]
+        docs = [self._index_to_doc[i[0]] for i in result.indices.tolist()]
         return docs, result.values.tolist()
 
 

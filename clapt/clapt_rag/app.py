@@ -3,6 +3,7 @@ import pydantic
 import pickle
 
 from langchain_core.prompts import ChatPromptTemplate
+from clapt.clapt_rag import generate_vecstore
 from langchain import output_parsers
 
 
@@ -19,7 +20,7 @@ if "vecstore" not in st.session_state.keys():
 
     st.session_state["vecstore"] = load_vecstore()
 
-vecstore = st.session_state["vecstore"]
+vecstore: generate_vecstore.VectorStore = st.session_state["vecstore"]
 
 
 prompt = ChatPromptTemplate.from_messages(
@@ -43,13 +44,16 @@ st.markdown(
 
 def get_answer(question):
     """Get answer for the question using LangChain."""
+
     formatted_prompt = prompt.format_prompt(input=question).to_string()
+    vecstore.tokenizer(
+        formatted_prompt,
+    )
     return formatted_prompt
 
 
 def fetch_research_abstract(entity):
-    abstract = "Simulated abstract content for " + entity
-    return abstract
+    return vecstore.search(entity, k=1)[0][0].text
 
 
 def main():
