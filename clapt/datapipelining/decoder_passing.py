@@ -14,7 +14,7 @@ class LlamaLastHiddenStateExtractor:
     ) -> None:
         self.decoder_device = decoder_device
         self.output_device = output_device
-        decoder = transformers.AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+        decoder = transformers.AutoModelForCausalLM.from_pretrained(model_name)
         self.model = modeling.CLAPT(decoder, num_layers=0).to(decoder_device)
 
     @validation.validate_batch

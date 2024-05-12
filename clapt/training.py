@@ -9,7 +9,8 @@ from transformers import AutoModelForCausalLM, AutoConfig
 from loguru import logger
 
 from clapt import modeling
-from clapt.dataloaders import trainingsample_creation, wikipedia_loading
+from clapt import datapipelining
+from clapt.datapipelining import datamodels
 
 
 class MoCo(L.LightningModule):
@@ -22,7 +23,7 @@ class MoCo(L.LightningModule):
         label_smoothing: float,
     ) -> None:
         super().__init__()
-        self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
+        # self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
         self.llm_config = AutoConfig.from_pretrained(base_model_id)
         self.queue_size = queue_size
         self.momentum = momentum
@@ -32,8 +33,8 @@ class MoCo(L.LightningModule):
         self.encoder_q = modeling.CLAPTHead(self.llm_config)
         self.encoder_k = copy.deepcopy(self.encoder_q)
 
-        for param in self.base_llm.parameters():
-            param.requires_grad = False
+        # for param in self.base_llm.parameters():
+        #     param.requires_grad = False
 
         for param_q, param_k in zip(
             self.encoder_q.parameters(), self.encoder_k.parameters()
@@ -42,7 +43,7 @@ class MoCo(L.LightningModule):
             param_k.requires_grad = False
 
         self.register_buffer(
-            "queue", T.randn(self.base_llm.config.hidden_size, self.queue_size)
+            "queue", T.randn(self.llm_config.hidden_size, self.queue_size)
         )
         self.queue = nn.functional.normalize(self.queue, dim=0)
         self.register_buffer("queue_ptr", T.zeros(1, dtype=T.long))
@@ -84,23 +85,24 @@ class MoCo(L.LightningModule):
 
     def forward(
         self,
-        key_tensor: Optional[T.Tensor],
-        key_mask: Optional[T.Tensor],
-        query_tensor: Optional[T.Tensor],
-        query_mask: Optional[T.Tensor],
+        training_batch: datamodels.TrainingBatch,
         key_ids: Optional[T.Tensor] = None,
         query_ids: Optional[T.Tensor] = None,
     ) -> Tuple[T.Tensor, ...]:
+        key_tensor = training_batch.key_tensor
+        key_mask = training_batch.key_mask
+        query_tensor = training_batch.query_tensor
+        query_mask = training_batch.query_mask
 
-        with T.no_grad():
-            if key_tensor is None:
-                key_tensor = self.base_llm(
-                    input_ids=key_ids, attention_mask=key_mask
-                ).hidden_states[-1]
-            if query_tensor is None:
-                query_tensor = self.base_llm(
-                    input_ids=query_ids, attention_mask=query_mask
-                ).hidden_states[-1]
+        # with T.no_grad():
+        #     if key_tensor is None:
+        #         key_tensor = self.base_llm(
+        #             input_ids=key_ids, attention_mask=key_mask
+        #         ).hidden_states[-1]
+        #     if query_tensor is None:
+        #         query_tensor = self.base_llm(
+        #             input_ids=query_ids, attention_mask=query_mask
+        #         ).hidden_states[-1]
 
         bsz = query_tensor.size(0)
         q = self.encoder_q(key_tensor, key_mask)
@@ -118,6 +120,7 @@ class MoCo(L.LightningModule):
             logits, labels, label_smoothing=self.label_smoothing
         )
         self._dequeue_and_enqueue(k)
+        print(loss)
         return loss
 
     def configure_optimizers(self):
@@ -126,56 +129,51 @@ class MoCo(L.LightningModule):
         )
 
 
-class CLAPTModel(L.LightningModule):
-    def __init__(self, name_or_path: str) -> None:
-        super().__init__()
-        self.name_or_path = name_or_path
-        self.model = modeling.CLAPT(name_or_path)
+# class CLAPTModel(L.LightningModule):
+#     def __init__(self, name_or_path: str) -> None:
+#         super().__init__()
+#         self.name_or_path = name_or_path
+#         self.model = modeling.CLAPT(name_or_path)
 
-    def configure_model(self) -> None:
-        if self.model is not None:
-            return
-        self.model = modeling.CLAPT(self.name_or_path)
+#     def configure_model(self) -> None:
+#         if self.model is not None:
+#             return
+#         self.model = modeling.CLAPT(self.name_or_path)
 
-    def configure_optimizers(self):
-        return T.optim.AdamW(
-            self.parameters(), lr=5e-5, betas=[0.9, 0.999], eps=1e-8, weight_decay=0.01
-        )
+#     def configure_optimizers(self):
+#         return T.optim.AdamW(
+#             self.parameters(), lr=5e-5, betas=[0.9, 0.999], eps=1e-8, weight_decay=0.01
+#         )
 
-    def forward(
-        self,
-        input_ids: T.LongTensor = None,
-        attention_mask: Optional[T.Tensor] = None,
-        position_ids: Optional[T.LongTensor] = None,
-        past_key_values: Optional[List[T.FloatTensor]] = None,
-        inputs_embeds: Optional[T.FloatTensor] = None,
-        labels: Optional[T.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-        cache_position: Optional[T.LongTensor] = None,
-        decoder_embeds: Optional[T.Tensor] = None,
-    ) -> Any:
-        return self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            labels=labels,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=True,
-            return_dict=True,
-            cache_position=cache_position,
-            decoder_embeds=decoder_embeds,
-        )
-
-
-def collate_fn(
-    batch: List[List[int]], pad_token_id: int = 0
-) -> Tuple[T.Tensor, T.Tensor]: ...
+#     def forward(
+#         self,
+#         input_ids: T.LongTensor = None,
+#         attention_mask: Optional[T.Tensor] = None,
+#         position_ids: Optional[T.LongTensor] = None,
+#         past_key_values: Optional[List[T.FloatTensor]] = None,
+#         inputs_embeds: Optional[T.FloatTensor] = None,
+#         labels: Optional[T.LongTensor] = None,
+#         use_cache: Optional[bool] = None,
+#         output_attentions: Optional[bool] = None,
+#         output_hidden_states: Optional[bool] = None,
+#         return_dict: Optional[bool] = None,
+#         cache_position: Optional[T.LongTensor] = None,
+#         decoder_embeds: Optional[T.Tensor] = None,
+#     ) -> Any:
+#         return self.model(
+#             input_ids=input_ids,
+#             attention_mask=attention_mask,
+#             position_ids=position_ids,
+#             past_key_values=past_key_values,
+#             inputs_embeds=inputs_embeds,
+#             labels=labels,
+#             use_cache=use_cache,
+#             output_attentions=output_attentions,
+#             output_hidden_states=True,
+#             return_dict=True,
+#             cache_position=cache_position,
+#             decoder_embeds=decoder_embeds,
+#         )
 
 
 @T.no_grad()
@@ -190,7 +188,8 @@ def gather_nograd(x: T.Tensor) -> T.Tensor:
 
 
 def main() -> None:
-    datamodule = CLAPTData(modeling.MODEL_NAME, train_batch_size=8, val_batch_size=8)
+    train_data = datapipelining.create_trainingdatasets(modeling.MODEL_NAME)
+    train_dataloader = datapipelining.create_dataloaders(train_data, batch_size=16)
     model = MoCo(
         modeling.MODEL_NAME,
         queue_size=6552,
@@ -199,7 +198,7 @@ def main() -> None:
         label_smoothing=0.0,
     )
     trainer = L.Trainer(num_nodes=1, max_epochs=10)
-    trainer.fit(model=model, datamodule=datamodule)
+    trainer.fit(model=model, train_dataloaders=train_dataloader)
 
 
 if __name__ == "__main__":
