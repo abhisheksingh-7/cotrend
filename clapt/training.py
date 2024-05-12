@@ -2,6 +2,7 @@ import copy
 from typing import Any, Dict, List, Optional, Tuple
 
 import lightning as L
+import pydantic
 import ray.train
 import torch as T
 import torch.distributed as dist
@@ -85,19 +86,21 @@ class MoCo(L.LightningModule):
     def training_step(
         self, batch: datamodels.TrainingBatch, batch_idx: int
     ) -> T.Tensor | None:
+        batch = pydantic.TypeAdapter(datamodels.TrainingBatch).validate_python(batch)
         loss = self(batch)
         return loss
 
     def forward(
         self,
-        training_batch: datamodels.TrainingBatch,
+        batch: datamodels.TrainingBatch,
         key_ids: Optional[T.Tensor] = None,
         query_ids: Optional[T.Tensor] = None,
     ) -> Tuple[T.Tensor, ...]:
-        key_tensor = training_batch.key_tensor
-        key_mask = training_batch.key_mask
-        query_tensor = training_batch.query_tensor
-        query_mask = training_batch.query_mask
+        batch = pydantic.TypeAdapter(datamodels.TrainingBatch).validate_python(batch)
+        key_tensor = batch.key_tensor
+        key_mask = batch.key_mask
+        query_tensor = batch.query_tensor
+        query_mask = batch.query_mask
 
         # with T.no_grad():
         #     if key_tensor is None:
@@ -195,7 +198,7 @@ def gather_nograd(x: T.Tensor) -> T.Tensor:
 def train() -> None:
     model = MoCo(
         modeling.MODEL_NAME,
-        queue_size=6552,
+        queue_size=16 * 3500,
         momentum=0.999,
         temperature=1.0,
         label_smoothing=0.0,
