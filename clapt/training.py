@@ -12,44 +12,6 @@ from clapt import modeling
 from clapt.dataloaders import trainingsample_creation, wikipedia_loading
 
 
-class CLAPTData(L.LightningDataModule):
-    def __init__(
-        self, base_name_or_path: str, train_batch_size: int, val_batch_size: int
-    ) -> None:
-        super().__init__()
-        self.base_name_or_path = base_name_or_path
-        self.train_batch_size = train_batch_size
-        self.val_batch_size = val_batch_size
-
-    def prepare_data(self) -> None:
-        return super().prepare_data()
-
-    def prepare_data_per_node(self) -> None: ...
-
-    def setup(self, stage: str) -> None:
-        dp_factory = trainingsample_creation.TrainingDatapointFactory.from_model_name(
-            self.base_name_or_path, trainingsample_creation.AugmentationConfig()
-        )
-        dataset = wikipedia_loading.create_wikipedia_dataset(load_k_rows=1000)
-        logger.info(f"Dataset size: {dataset.count()}")
-        self.train_data = dataset
-        self.val_data = None
-
-    def train_dataloader(self) -> Any:
-        return torch_data.DataLoader(
-            self.train_data, self.train_batch_size, collate_fn=collate_fn
-        )
-
-    def val_dataloader(self) -> Any:
-        return None
-        return torch_data.DataLoader(
-            self.val_data, self.train_batch_size, collate_fn=collate_fn
-        )
-
-    def teardown(self, stage: str) -> None:
-        return super().teardown(stage)
-
-
 class MoCo(L.LightningModule):
     def __init__(
         self,
