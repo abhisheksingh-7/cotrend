@@ -164,3 +164,7 @@ data/*
 
 eval/*
 !eval/README.md
+
+*.json
+Wiki/
+*.tsv
