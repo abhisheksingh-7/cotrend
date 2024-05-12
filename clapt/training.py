@@ -1,16 +1,21 @@
-from typing import Any, Optional, List, Tuple, Dict
 import copy
-import torch as T
-import torch.nn as nn
-import torch.distributed as dist
-from torch.utils import data as torch_data
-import lightning as L
-from transformers import AutoModelForCausalLM, AutoConfig
-from loguru import logger
+from typing import Any, Dict, List, Optional, Tuple
 
-from clapt import modeling
-from clapt import datapipelining
+import lightning as L
+import ray.train
+import torch as T
+import torch.distributed as dist
+import torch.nn as nn
+from loguru import logger
+from torch.utils import data as torch_data
+from transformers import AutoConfig, AutoModelForCausalLM
+
+from clapt import datapipelining, modeling
 from clapt.datapipelining import datamodels
+import ray.train.lightning
+import ray.train.torch
+
+TRAIN_SHARD = "train"
 
 
 class MoCo(L.LightningModule):
@@ -78,9 +83,9 @@ class MoCo(L.LightningModule):
         return logits
 
     def training_step(
-        self, batch: Dict[str, T.Tensor], batch_idx: int
+        self, batch: datamodels.TrainingBatch, batch_idx: int
     ) -> T.Tensor | None:
-        loss = self(**batch)
+        loss = self(batch)
         return loss
 
     def forward(
@@ -187,9 +192,7 @@ def gather_nograd(x: T.Tensor) -> T.Tensor:
     return x_gather
 
 
-def main() -> None:
-    train_data = datapipelining.create_trainingdatasets(modeling.MODEL_NAME)
-    train_dataloader = datapipelining.create_dataloaders(train_data, batch_size=16)
+def train() -> None:
     model = MoCo(
         modeling.MODEL_NAME,
         queue_size=6552,
@@ -197,9 +200,25 @@ def main() -> None:
         temperature=1.0,
         label_smoothing=0.0,
     )
-    trainer = L.Trainer(num_nodes=1, max_epochs=10)
-    trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+    dataset = ray.train.get_dataset_shard(TRAIN_SHARD)
+    dataloader = datapipelining.create_dataloaders(dataset, batch_size=16)
+    trainer = L.Trainer(
+        max_epochs=10,
+        strategy=ray.train.lightning.RayDDPStrategy(),
+        plugins=[ray.train.lightning.RayLightningEnvironment()],
+        callbacks=[ray.train.lightning.RayTrainReportCallback()],
+    )
+    trainer = ray.train.lightning.prepare_trainer(trainer)
+    trainer.fit(model=model, train_dataloaders=dataloader)
 
 
 if __name__ == "__main__":
-    main()
+    train_data = datapipelining.create_trainingdatasets(modeling.MODEL_NAME)
+    scaling_config = ray.train.ScalingConfig(num_workers=2, use_gpu=True)
+    trainer = ray.train.torch.TorchTrainer(
+        train,
+        scaling_config=scaling_config,
+        datasets={TRAIN_SHARD: train_data},
+    )
+    trainer.fit()

@@ -9,9 +9,7 @@ import ray.data
 import transformers
 
 
-def create_trainingdatasets(
-    MODEL_NAME: str = modeling.MODEL_NAME,
-) -> ray.data.Dataset:
+def create_trainingdatasets(MODEL_NAME: str = modeling.MODEL_NAME) -> ray.data.Dataset:
     return (
         wikipedia_loading.create_wikipedia_dataset()
         .map(
@@ -20,14 +18,15 @@ def create_trainingdatasets(
                 trainingsample_creation.AugmentationConfig(),
                 transformers.AutoTokenizer.from_pretrained(MODEL_NAME),
             ),
-            concurrency=8,
+            concurrency=32,
         )
         .map_batches(
             decoder_passing.LlamaLastHiddenStateExtractor,
             fn_constructor_args=(MODEL_NAME,),
-            batch_size=2,
+            batch_size=16,
+            # 4x A100
             num_gpus=1,
-            concurrency=4,  # 4x A100
+            concurrency=2,
         )
     )
 

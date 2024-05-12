@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-ray = {version = "^2.21.0", extras = ["data"]}
+ray = {version = "^2.21.0", extras = ["data", "train"]}
 pydantic = "^2.7.1"
 torch = "^2.3.0"
 lightning = "^2.2.4"

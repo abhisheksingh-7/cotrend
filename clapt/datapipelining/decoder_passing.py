@@ -41,7 +41,7 @@ class LlamaLastHiddenStateExtractor:
         self, input_ids: torch.Tensor, attention_mask: torch.Tensor
     ) -> torch.Tensor:
         with torch.no_grad():
-            return self.model.get_decoder_last_hidden_state(
+            return self.model(  # type: ignore
                 input_ids=input_ids,
                 attention_mask=attention_mask,
             )
