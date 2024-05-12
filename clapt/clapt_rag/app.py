@@ -34,7 +34,7 @@ output_parser: output_parsers.PydanticOutputParser[Output] = (
 
 
 # Set the page configuration for Streamlit
-st.set_page_config(page_title="CLAPT RAG", layout="wide")
+st.set_page_config(page_title="Llama-3 CLAPT RAG", layout="wide")
 st.markdown(
     "<style>body { color: #fff; background-color: #111; }</style>",
     unsafe_allow_html=True,
@@ -45,6 +45,11 @@ def get_answer(question):
     """Get answer for the question using LangChain."""
     formatted_prompt = prompt.format_prompt(input=question).to_string()
     return formatted_prompt
+
+
+def fetch_research_abstract(entity):
+    abstract = "Simulated abstract content for " + entity
+    return abstract
 
 
 def main():
@@ -59,14 +64,6 @@ def main():
     st.title("Llama-3-Clapt RAG Question Answering")
     st.write("Type your question.")
 
-    # Context area
-    # default_context = "Contrastively LeArned Perceptron Encoder from Decoders"
-    # if "context" not in st.session_state:
-    #     st.session_state["context"] = default_context
-
-    # context = st.text_area("Context", value=st.session_state["context"], height=150)
-    # st.session_state["context"] = context
-
     question = st.text_input("Question", "")
 
     # Button to get the answer
@@ -74,6 +71,16 @@ def main():
         with st.spinner("Searching for answers..."):
             answer = get_answer(question)
             st.write("**Answer:**", answer)
+
+    entity_name = st.text_input(
+        "Medical Entity", "Enter a medical entity like fever or cough"
+    )
+    # Button and expander for research abstract
+    if st.button("Fetch Abstract"):
+        with st.spinner("Fetching research abstract..."):
+            abstract = fetch_research_abstract(entity_name)
+            expander = st.expander("Research Abstract for " + entity_name)
+            expander.write(abstract)
 
 
 if __name__ == "__main__":
