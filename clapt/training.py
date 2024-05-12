@@ -12,7 +12,7 @@ from torch.utils import data as torch_data
 from transformers import AutoConfig, AutoModelForCausalLM
 
 from clapt import datapipelining, modeling
-from clapt.datapipelining import datamodels
+from clapt.datapipelining import datamodels, torch_dataloading
 import ray.train.lightning
 import ray.train.torch
 
@@ -29,7 +29,7 @@ class MoCo(L.LightningModule):
         label_smoothing: float,
     ) -> None:
         super().__init__()
-        # self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
+        self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
         self.llm_config = AutoConfig.from_pretrained(base_model_id)
         self.queue_size = queue_size
         self.momentum = momentum
@@ -39,8 +39,8 @@ class MoCo(L.LightningModule):
         self.encoder_q = modeling.CLAPTHead(self.llm_config)
         self.encoder_k = copy.deepcopy(self.encoder_q)
 
-        # for param in self.base_llm.parameters():
-        #     param.requires_grad = False
+        for param in self.base_llm.parameters():
+            param.requires_grad = False
 
         for param_q, param_k in zip(
             self.encoder_q.parameters(), self.encoder_k.parameters()
@@ -93,25 +93,19 @@ class MoCo(L.LightningModule):
     def forward(
         self,
         batch: datamodels.TrainingBatch,
-        key_ids: Optional[T.Tensor] = None,
-        query_ids: Optional[T.Tensor] = None,
     ) -> Tuple[T.Tensor, ...]:
         batch = pydantic.TypeAdapter(datamodels.TrainingBatch).validate_python(batch)
         key_tensor = batch.key_tensor
         key_mask = batch.key_mask
         query_tensor = batch.query_tensor
         query_mask = batch.query_mask
-
-        # with T.no_grad():
-        #     if key_tensor is None:
-        #         key_tensor = self.base_llm(
-        #             input_ids=key_ids, attention_mask=key_mask
-        #         ).hidden_states[-1]
-        #     if query_tensor is None:
-        #         query_tensor = self.base_llm(
-        #             input_ids=query_ids, attention_mask=query_mask
-        #         ).hidden_states[-1]
-
+        with T.no_grad():
+            key_tensor = self.base_llm(
+                input_ids=key_tensor, attention_mask=key_mask
+            ).hidden_states[-1]
+            query_tensor = self.base_llm(
+                input_ids=query_tensor, attention_mask=query_mask
+            ).hidden_states[-1]
         bsz = query_tensor.size(0)
         q = self.encoder_q(key_tensor, key_mask)
 
@@ -137,53 +131,6 @@ class MoCo(L.LightningModule):
         )
 
 
-# class CLAPTModel(L.LightningModule):
-#     def __init__(self, name_or_path: str) -> None:
-#         super().__init__()
-#         self.name_or_path = name_or_path
-#         self.model = modeling.CLAPT(name_or_path)
-
-#     def configure_model(self) -> None:
-#         if self.model is not None:
-#             return
-#         self.model = modeling.CLAPT(self.name_or_path)
-
-#     def configure_optimizers(self):
-#         return T.optim.AdamW(
-#             self.parameters(), lr=5e-5, betas=[0.9, 0.999], eps=1e-8, weight_decay=0.01
-#         )
-
-#     def forward(
-#         self,
-#         input_ids: T.LongTensor = None,
-#         attention_mask: Optional[T.Tensor] = None,
-#         position_ids: Optional[T.LongTensor] = None,
-#         past_key_values: Optional[List[T.FloatTensor]] = None,
-#         inputs_embeds: Optional[T.FloatTensor] = None,
-#         labels: Optional[T.LongTensor] = None,
-#         use_cache: Optional[bool] = None,
-#         output_attentions: Optional[bool] = None,
-#         output_hidden_states: Optional[bool] = None,
-#         return_dict: Optional[bool] = None,
-#         cache_position: Optional[T.LongTensor] = None,
-#         decoder_embeds: Optional[T.Tensor] = None,
-#     ) -> Any:
-#         return self.model(
-#             input_ids=input_ids,
-#             attention_mask=attention_mask,
-#             position_ids=position_ids,
-#             past_key_values=past_key_values,
-#             inputs_embeds=inputs_embeds,
-#             labels=labels,
-#             use_cache=use_cache,
-#             output_attentions=output_attentions,
-#             output_hidden_states=True,
-#             return_dict=True,
-#             cache_position=cache_position,
-#             decoder_embeds=decoder_embeds,
-#         )
-
-
 @T.no_grad()
 def gather_nograd(x: T.Tensor) -> T.Tensor:
     if not dist.is_initialized():
@@ -196,6 +143,10 @@ def gather_nograd(x: T.Tensor) -> T.Tensor:
 
 
 def train() -> None:
+    dataset = torch_dataloading.MocoDataset.from_model_name(modeling.MODEL_NAME)
+    dataloader = torch_data.DataLoader(
+        dataset, batch_size=4, collate_fn=torch_dataloading.collate_batch
+    )
     model = MoCo(
         modeling.MODEL_NAME,
         queue_size=16 * 3500,
@@ -203,25 +154,11 @@ def train() -> None:
         temperature=1.0,
         label_smoothing=0.0,
     )
-
-    dataset = ray.train.get_dataset_shard(TRAIN_SHARD)
-    dataloader = datapipelining.create_dataloaders(dataset, batch_size=16)
     trainer = L.Trainer(
         max_epochs=10,
-        strategy=ray.train.lightning.RayDDPStrategy(),
-        plugins=[ray.train.lightning.RayLightningEnvironment()],
-        callbacks=[ray.train.lightning.RayTrainReportCallback()],
     )
-    trainer = ray.train.lightning.prepare_trainer(trainer)
     trainer.fit(model=model, train_dataloaders=dataloader)
 
 
 if __name__ == "__main__":
-    train_data = datapipelining.create_trainingdatasets(modeling.MODEL_NAME)
-    scaling_config = ray.train.ScalingConfig(num_workers=2, use_gpu=True)
-    trainer = ray.train.torch.TorchTrainer(
-        train,
-        scaling_config=scaling_config,
-        datasets={TRAIN_SHARD: train_data},
-    )
-    trainer.fit()
+    train()
