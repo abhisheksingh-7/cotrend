@@ -3,12 +3,13 @@ validation for parsing steps
 """
 
 import functools
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, Callable, Literal, TypeVar, overload
 
 import numpy as np
 import pydantic
 import torch
 
+DUMP_AS_DICT: bool = False
 
 _Self = Any
 T_contra = TypeVar("T_contra", contravariant=True, bound=pydantic.BaseModel)
@@ -37,7 +38,7 @@ def validate_batch(f: Callable) -> Callable:
         data_list = list[Any](data)
         data_list[-1] = _unbatch(data[-1])
         result = validated_f(*data_list)
-        return result.model_dump()
+        return result.model_dump() if DUMP_AS_DICT else result
 
     return decorator
 
@@ -51,17 +52,33 @@ def _unbatch(data: dict[str, np.ndarray]) -> list[dict[str, Any]]:
 
 @overload
 def validate(  # method on class
-    f: Callable[[_Self, T_contra], T_co]
+    f: Callable[[_Self, T_contra], T_co],
+    _dump_as_dict: Literal[True] = DUMP_AS_DICT,
 ) -> Callable[[_Self, dict[str, Any]], dict[str, Any]]: ...
 
 
 @overload
 def validate(  # function
-    f: Callable[[T_contra], T_co]
+    f: Callable[[T_contra], T_co],
+    _dump_as_dict: Literal[True] = DUMP_AS_DICT,
 ) -> Callable[[dict[str, Any]], dict[str, Any]]: ...
 
 
-def validate(f: Callable) -> Callable:
+@overload
+def validate(  # method on class
+    f: Callable[[_Self, T_contra], T_co],
+    _dump_as_dict: Literal[False] = DUMP_AS_DICT,
+) -> Callable[[_Self, dict[str, Any]], T_co]: ...
+
+
+@overload
+def validate(  # function
+    f: Callable[[T_contra], T_co],
+    _dump_as_dict: Literal[False] = DUMP_AS_DICT,
+) -> Callable[[dict[str, Any]], T_co]: ...
+
+
+def validate(f: Callable, _dump_as_dict: bool = DUMP_AS_DICT) -> Callable:
     """ser / deser for ray.data steps"""
     validated_f = pydantic.validate_call(validate_return=True)(f)
 
@@ -69,7 +86,7 @@ def validate(f: Callable) -> Callable:
     def decorator(*data: Any) -> dict[str, Any]:
         nonlocal validated_f
         result = validated_f(*data)
-        return result.model_dump()
+        return result.model_dump() if _dump_as_dict else result
 
     return decorator
 
