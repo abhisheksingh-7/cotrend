@@ -161,3 +161,6 @@ cython_debug/
 
 data/*
 !data/README.md
+
+eval/*
+!eval/README.md
