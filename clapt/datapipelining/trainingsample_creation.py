@@ -161,28 +161,3 @@ def add_bos_eos(
     if eos_token_id is not None:
         x = x + [eos_token_id]
     return x
-
-
-if __name__ == "__main__":
-    from clapt.datapipelining import wikipedia_loading
-
-    dpfactory = TrainingSampleFactory.from_model_name(
-        "meta-llama/Meta-Llama-3-8B", AugmentationConfig()
-    )
-    dataset = wikipedia_loading.create_wikipedia_dataset(load_k_rows=100)
-    print(dataset.count())
-    datapoint = dataset.take(10)[-1]
-    processed_dp = dpfactory(datapoint)
-    key = processed_dp["key"]
-    query = processed_dp["query"]
-    import torch as T
-    from clapt import modeling
-
-    key = T.tensor(key)
-    query = T.tensor(query)
-    print(key)
-
-    device = T.device("cuda:0")
-    model = modeling.CLAPT(modeling.MODEL_NAME).to(device)
-    out = model(input_ids=key[None, :].to(device))
-    print(out)

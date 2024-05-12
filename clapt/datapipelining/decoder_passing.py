@@ -1,4 +1,5 @@
 import torch
+import transformers
 
 from clapt import modeling
 from clapt.datapipelining import datamodels, padding, validation
@@ -13,7 +14,8 @@ class LlamaLastHiddenStateExtractor:
     ) -> None:
         self.decoder_device = decoder_device
         self.output_device = output_device
-        self.model = modeling.CLAPT(model_name, num_layers=0).to(decoder_device)
+        decoder = transformers.AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+        self.model = modeling.CLAPT(decoder, num_layers=0).to(decoder_device)
 
     @validation.validate_batch
     def __call__(
