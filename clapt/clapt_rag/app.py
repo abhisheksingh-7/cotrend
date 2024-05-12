@@ -4,6 +4,7 @@ import pydantic
 import pickle
 
 from langchain_core.prompts import ChatPromptTemplate
+from clapt.clapt_rag import generate_vecstore
 from langchain import output_parsers
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -17,7 +18,7 @@ Role = Literal["system", "user", "assistant"]
 if "vecstore" not in st.session_state.keys():
 
     def load_vecstore():
-        with open("/data/clapt-vecstore.pkl", "rb") as f:
+        with open("/data/clapt-vecstore-large.pkl", "rb") as f:
             vec = pickle.load(f)
         return vec
 
@@ -40,14 +41,17 @@ st.markdown(
 
 def get_answer(question):
     """Get answer for the question using LangChain."""
-    # formatted_prompt = prompt.format_prompt(input=question).to_string()
     messages = [
         {
             "role": "system",
             "content": "You are a trained medical doctor and biomedical expert. Answer the user's question as such.",
         }
     ]
-    user_message = {"role": "user", "content": question}
+    document_text = vecstore.search(question, k=1)[0][0].text
+    user_message = {
+        "role": "user",
+        "content": "Context: " + document_text + "\nQuestion: " + question,
+    }
     messages.append(user_message)
     input_ids = tokenizer.apply_chat_template(
         messages, add_generation_prompt=True, return_tensors="pt"
@@ -69,8 +73,8 @@ def get_answer(question):
 
 
 def fetch_research_abstract(entity):
-    abstract = "Simulated abstract content for " + entity
-    return abstract
+    match_ = vecstore.search(entity, k=1)[0][0]
+    return f"Title: {match_.title}\n\n{match_.abstract}"
 
 
 def main():
