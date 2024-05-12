@@ -19,7 +19,7 @@ The CoTrEnD architecture is a simple extension of the decoder-only model. The en
 
 <p align="center">
     <a href="#readme">
-        <img alt="CoTrEnD Logo" src="static/cotrend-architecture.png" style="height: 256px;">
+        <img alt="CoTrEnD Logo" src="static/cotrend-architecture.png" style="height: 512px;">
     </a>
 </p>
 </p>
