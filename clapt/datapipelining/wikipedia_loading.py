@@ -8,10 +8,10 @@ import ray.data
 from typing_extensions import Annotated
 
 from clapt import constants
-from clapt.dataloaders import datamodels, validation
+from clapt.datapipelining import datamodels, validation
 
 DEFAULT_DB_PATH = constants.REPO_ROOT / "data/wikipedia/docs.db"
-QUERY = """SELECT * FROM documents"""
+QUERY = """SELECT * FROM documents LIMIT 100;"""
 
 
 def create_wikipedia_dataset(

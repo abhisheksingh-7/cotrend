@@ -12,7 +12,7 @@ import pydantic
 import transformers
 from typing_extensions import Self
 
-from clapt.dataloaders import datamodels, validation
+from clapt.datapipelining import datamodels, validation
 
 
 class Augmentations(str, enum.Enum):
@@ -36,7 +36,7 @@ class KeyQueryTuple(NamedTuple):
     query: list[int]
 
 
-class TrainingDatapointFactory:
+class TrainingSampleFactory:
     """Create a training data point from a document."""
 
     def __init__(
@@ -78,7 +78,9 @@ class TrainingDatapointFactory:
         return KeyQueryTuple(key=k_tokens, query=q_tokens)
 
     @classmethod
-    def from_model_name(cls, model_name: str, config: AugmentationConfig) -> Self:
+    def from_model_name(
+        cls, model_name: str, config: AugmentationConfig = AugmentationConfig()
+    ) -> Self:
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
         return cls(config, cast(transformers.PreTrainedTokenizer, tokenizer))
 
@@ -149,9 +151,9 @@ def add_bos_eos(
 
 
 if __name__ == "__main__":
-    from clapt.dataloaders import wikipedia_loading
+    from clapt.datapipelining import wikipedia_loading
 
-    dpfactory = TrainingDatapointFactory.from_model_name(
+    dpfactory = TrainingSampleFactory.from_model_name(
         "meta-llama/Meta-Llama-3-8B", AugmentationConfig()
     )
     dataset = wikipedia_loading.create_wikipedia_dataset()

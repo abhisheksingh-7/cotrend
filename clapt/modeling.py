@@ -25,7 +25,10 @@ class CLAPT(nn.Module):
         self.query_vec = nn.Embedding(
             1, embedding_dim=self.decoder_with_lm.config.hidden_size
         )
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        if num_layers < 1:
+            self.encoder = nn.Identity()
+        else:
+            self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
     def forward(
         self,
@@ -43,7 +46,7 @@ class CLAPT(nn.Module):
         decoder_embeds: Optional[T.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         if decoder_embeds is None:
-            lm_outputs: CausalLMOutputWithPast = self.decoder_with_lm(
+            decoder_embeds = self.get_decoder_last_hidden_state(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 position_ids=position_ids,
@@ -56,11 +59,41 @@ class CLAPT(nn.Module):
                 return_dict=True,
                 cache_position=cache_position,
             )
-            decoder_embeds = lm_outputs.hidden_states[-1]
         encodings, mask = self.get_encoding_with_query_vec(
             decoder_embeds, attention_mask
         )
         return self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
+
+    def get_decoder_last_hidden_state(
+        self,
+        input_ids: T.Tensor = None,
+        attention_mask: Optional[T.Tensor] = None,
+        position_ids: Optional[T.LongTensor] = None,
+        past_key_values: Optional[List[T.FloatTensor]] = None,
+        inputs_embeds: Optional[T.FloatTensor] = None,
+        labels: Optional[T.LongTensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[T.LongTensor] = None,
+        decoder_embeds: Optional[T.Tensor] = None,
+    ) -> T.Tensor:
+        lm_outputs: CausalLMOutputWithPast = self.decoder_with_lm(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_values=past_key_values,
+            inputs_embeds=inputs_embeds,
+            labels=labels,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=True,
+            return_dict=True,
+            cache_position=cache_position,
+        )
+        decoder_embeds = lm_outputs.hidden_states[-1]
+        return decoder_embeds
 
     def get_encoding_with_query_vec(
         self, decoder_embeds: T.Tensor, attention_mask: T.Tensor
