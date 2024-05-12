@@ -10,11 +10,11 @@ setup: # Installs project dependencies including all extras with Poetry.
 
 .PHONY: data
 data: # Downloads the data using the script provided by DrQA.
-	DRQA_DATA=./data/ DrQA/download.sh
+	DRQA_DATA=/data/clapt/data/ DrQA/download.sh
 
 .PHONY: eval_data
 eval_data: # Downloads the evaluation data using the script provided by FiD.
-	FID_DATA=./eval/ fid/get-data.sh
+	FID_DATA=/data/clapt/eval/ fid/get-data.sh
 
 .PHONY: fmt
 fmt: # Formats the code in the src/ and tests/ directories using black.
