@@ -29,7 +29,9 @@ class MoCo(L.LightningModule):
         label_smoothing: float,
     ) -> None:
         super().__init__()
+        self.base_model_id = base_model_id
         self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
+        print(self.base_llm)
         self.llm_config = AutoConfig.from_pretrained(base_model_id)
         self.queue_size = queue_size
         self.momentum = momentum
@@ -61,6 +63,11 @@ class MoCo(L.LightningModule):
             param_k.data = param_k.data * self.momentum + param_q.data * (
                 1.0 - self.momentum
             )
+
+    def configure_model(self) -> None:
+        if self.base_llm is not None:
+            return
+        self.base_llm = AutoModelForCausalLM.from_pretrained(self.base_model_id)
 
     @T.no_grad()
     def _dequeue_and_enqueue(self, keys):
