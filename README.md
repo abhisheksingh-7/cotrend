@@ -9,7 +9,7 @@
     Extending Decoders with an Integrated Encoder
 </p>
 
-This repo holds the code for training encoders that embed the final hidden state from large decoder models. To our knowledge, CoTrEnD is the first architecture to leverage a contrastive loss to train an encoder from a decoder. 
+This repo holds the code for training encoders that embed the final hidden state from large decoder models. To our knowledge, CoTrEnD is the first architecture to leverage a contrastive loss to train an encoder from a decoder. It was developed as part of the 24h [Meta LLAMA-3 hackathon May 2024](https://devpost.com/software/cotrend) by [Abhishek Singh](https://github.com/abhisheksingh-7), [Arthur Böök](https://github.com/ArthurBook), and [Wian Stipp](https://github.com/WianStipp).
 
 ## Motivation
 The motivation behind the CoTrEnD project is to utilize on the rich hidden states that are generated within large decoders. Rather than separating the embedder from the decoder as one typically would in a RAG approach, CoTrEnD integrates the encoder on top of the decoder. This allows the encoder to leverage the semantic information already captured within the decoder's hidden states.
@@ -19,7 +19,29 @@ The CoTrEnD architecture is a simple extension of the decoder-only model. The en
 
 <p align="center">
     <a href="#readme">
-        <img alt="CoTrEnD Logo" src="static/cotrend-architecture.png" style="height: 512px;">
+        <img alt="CoTrEnD Logo" src="static/cotrend-architecture.png" style="width: 40%;">
+    </a>
+</p>
+</p>
+
+
+## User Interface
+The CoTrEnD project includes a user interface that allows users to interact with the model. The user interface is built using Streamlit with two modes of operation.
+
+### RAG Mode
+The user can ask anything in the `question` field, and the CoTrEnD model will do a embedding search over the vectorstore to augment the generated answer.
+<p align="center">
+    <a href="#readme">
+        <img alt="RAG-example" src="static/rag-ui-example.png" style="width: 100%;">
+    </a>
+</p>
+</p>
+
+### Document Lookup Mode
+The user can enter a medical entity in the `entity` field, and the CoTrEnD model will return the most similar document from the vectorstore.
+<p align="center">
+    <a href="#readme">
+        <img alt="lookup-example" src="static/lookup-ui-example.png" style="width: 100%;">
     </a>
 </p>
 </p>
