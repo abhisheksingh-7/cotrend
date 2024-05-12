@@ -63,7 +63,7 @@ class CLAPT(nn.Module):
         return self.encoder(src=encodings, src_key_padding_mask=mask)[:, 0, :]
 
     def get_encoding_with_query_vec(
-        self, decoder_embeds: T.Tensor, attention_mask: T.Tensor
+        self, decoder_embeds: T.Tensor, attention_mask: Optional[T.Tensor]
     ) -> Tuple[T.Tensor, Optional[T.Tensor]]:
         encodings = T.cat(
             (
@@ -72,10 +72,13 @@ class CLAPT(nn.Module):
             ),
             dim=1,
         )
-        query_mask = T.ones(
-            (attention_mask.shape[0], 1), dtype=T.bool, device=attention_mask.device
-        )
-        mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
+        if attention_mask:
+            query_mask = T.ones(
+                (attention_mask.shape[0], 1), dtype=T.bool, device=attention_mask.device
+            )
+            mask = ~T.cat([query_mask, attention_mask], dim=1).type(T.bool)
+        else:
+            mask = attention_mask
         return encodings, mask
 
 

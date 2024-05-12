@@ -154,7 +154,20 @@ if __name__ == "__main__":
     dpfactory = TrainingDatapointFactory.from_model_name(
         "meta-llama/Meta-Llama-3-8B", AugmentationConfig()
     )
-    dataset = wikipedia_loading.create_wikipedia_dataset()
-    datapoint = dataset.take(1)[0]
+    dataset = wikipedia_loading.create_wikipedia_dataset(load_k_rows=100)
+    print(dataset.count())
+    datapoint = dataset.take(10)[-1]
     processed_dp = dpfactory(datapoint)
-    print(processed_dp)
+    key = processed_dp["key"]
+    query = processed_dp["query"]
+    import torch as T
+    from clapt import modeling
+
+    key = T.tensor(key)
+    query = T.tensor(query)
+    print(key)
+
+    device = T.device("cuda:0")
+    model = modeling.CLAPT(modeling.MODEL_NAME).to(device)
+    out = model(input_ids=key[None, :].to(device))
+    print(out)
