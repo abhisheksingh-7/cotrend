@@ -53,7 +53,7 @@ class TrainingSampleFactory:
         self.eos = self.tokenizer.eos_token_id
         self.max_token_length = max_token_length
 
-    @validation.validate
+    # @validation.validate
     def __call__(self, dp: datamodels.Document) -> datamodels.TrainingDataPoint:
         input_ids = self.tokenize(dp.content)
         key, query = self.augment(input_ids)
