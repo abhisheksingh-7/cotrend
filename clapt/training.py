@@ -1,6 +1,7 @@
 from typing import Any, Optional, List
 import torch as T
 import lightning as L
+from transformers import AutoModelForCausalLM
 
 from clapt import modeling
 
@@ -21,6 +22,25 @@ class CLAPTData(L.LightningDataModule):
 
     def teardown(self, stage: str) -> None:
         return super().teardown(stage)
+
+
+class MoCo(L.LightningModule):
+    def __init__(
+        self, base_model_id: str, queue_size: int, momentum: float, temperature: float
+    ) -> None:
+        super().__init__()
+        self.base_llm = AutoModelForCausalLM.from_pretrained(base_model_id)
+        self.queue_size = queue_size
+        self.momentum = momentum
+        self.temperature = temperature
+
+        self.encoder_q = None
+        self.encoder_k = None
+
+    def configure_model(self) -> None:
+        if self.model is not None:
+            return
+        self.model = modeling.CLAPT(self.name_or_path)
 
 
 class CLAPTModel(L.LightningModule):
