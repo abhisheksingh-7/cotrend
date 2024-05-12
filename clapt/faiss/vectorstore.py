@@ -58,6 +58,7 @@ class VectorStore:
     def create_index(self) -> faiss.Index:
         # TODO: index_factory
         index = None
+        logger.info(f"Creating index of type: {self.index_type}")
 
         if self.index_type == IndexType.HNSW:
             index: faiss.IndexHNSWFlat = faiss.IndexHNSWFlat(
@@ -85,8 +86,8 @@ class VectorStore:
                 )
             index.train(np.random.rand(10000, self.dim).astype("float32"))
 
-        gpu_index = faiss.index_cpu_to_gpu(self.gpu_resource, self.gpu_id, index)
-        return gpu_index
+        # gpu_index = faiss.index_cpu_to_gpu(self.gpu_resource, self.gpu_id, index)
+        return index
 
     def add(self, vectors: Union[np.ndarray, T.Tensor]) -> None:
         if isinstance(vectors, T.Tensor):
@@ -113,13 +114,13 @@ class VectorStore:
 
 def main() -> None:
     index_config = IndexConfig(
-        index_type=IndexType.IVFFLAT, index_params=IVFIndexParams()
+        index_type=IndexType.FLATIP, index_params=HNSWIndexParams()
     )
 
     faiss_config = FaissConfig(
         dim=128,
         gpu_id=0,
-        metric=faiss.METRIC_L2,
+        metric=faiss.METRIC_INNER_PRODUCT,
         index_config=index_config,
         arbitrary_types_allowed=True,
     )
