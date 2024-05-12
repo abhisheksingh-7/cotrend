@@ -6,3 +6,6 @@
 	url = git@github.com:facebookresearch/DrQA.git
 [submodule "DrQA/"]
 	branch = main
+[submodule "fid"]
+	path = fid
+	url = https://github.com/facebookresearch/fid
