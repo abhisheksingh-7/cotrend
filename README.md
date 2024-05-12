@@ -48,47 +48,76 @@ The user can enter a medical entity in the `entity` field, and the CoTrEnD model
 
 
 ## Team
-<div style="margin-bottom: 20px;">
-    <h4 style="margin-bottom: 5px;">Abhishek Singh</h4>
-    <div style="display: flex; align-items: center;">
-        <a href="https://www.linkedin.com/in/abhisheksingh-7/" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
-        </a>
-        <a href="https://github.com/abhisheksingh-7" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
-        </a>
-        <a href="https://twitter.com/shekenotstirred" target="_blank">
-            <img src="https://img.shields.io/twitter/follow/shekenotstirred?label=Follow&style=social" alt="Twitter">
-        </a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Professional Profiles</title>
+<style>
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around; /* Distributes space evenly */
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .profile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .links {
+        display: flex;
+        gap: 10px; /* Ensures even spacing between links */
+        margin-top: 5px;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="profile">
+            <h4>Abhishek Singh</h4>
+            <div class="links">
+                <a href="https://www.linkedin.com/in/abhisheksingh-7/" target="_blank">
+                    <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
+                </a>
+                <a href="https://github.com/abhisheksingh-7" target="_blank">
+                    <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
+                </a>
+                <a href="https://twitter.com/shekenotstirred" target="_blank">
+                    <img src="https://img.shields.io/twitter/follow/shekenotstirred?label=Follow&style=social" alt="Twitter">
+                </a>
+            </div>
+        </div>
+        <div class="profile">
+            <h4>Arthur Böök</h4>
+            <div class="links">
+                <a href="https://www.linkedin.com/in/arthurbook/" target="_blank">
+                    <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
+                </a>
+                <a href="https://github.com/ArthurBook" target="_blank">
+                    <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
+                </a>
+                <a href="https://twitter.com/TheRealABook" target="_blank">
+                    <img src="https://img.shields.io/twitter/follow/TheRealABook?label=Follow&style=social" alt="Twitter">
+                </a>
+            </div>
+        </div>
+        <div class="profile">
+            <h4>Wian Stipp</h4>
+            <div class="links">
+                <a href="https://www.linkedin.com/in/wian-stipp/" target="_blank">
+                    <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
+                </a>
+                <a href="https://github.com/WianStipp" target="_blank">
+                    <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
+                </a>
+                <a href="https://twitter.com/WianStipp" target="_blank">
+                    <img src="https://img.shields.io/twitter/follow/WianStipp?label=Follow&style=social" alt="Twitter">
+                </a>
+            </div>
+        </div>
     </div>
-</div>
-
-<div style="margin-bottom: 20px;">
-    <h4 style="margin-bottom: 5px;">Arthur Böök</h4>
-    <div style="display: flex; align-items: center;">
-        <a href="https://www.linkedin.com/in/arthurbook/" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
-        </a>
-        <a href="https://github.com/ArthurBook" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
-        </a>
-        <a href="https://twitter.com/TheRealABook" target="_blank">
-            <img src="https://img.shields.io/twitter/follow/TheRealABook?label=Follow&style=social" alt="Twitter">
-        </a>
-    </div>
-</div>
-
-<div style="margin-bottom: 20px;">
-    <h4 style="margin-bottom: 5px;">Wian Stipp</h4>
-    <div style="display: flex; align-items: center;">
-        <a href="https://www.linkedin.com/in/wian-stipp/" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-LinkedIn-blue?style=flat-square&logo=linkedin" alt="LinkedIn">
-        </a>
-        <a href="https://github.com/WianStipp" target="_blank" style="margin-right: 10px;">
-            <img src="https://img.shields.io/badge/-GitHub-black?style=flat-square&logo=github" alt="GitHub">
-        </a>
-        <a href="https://twitter.com/WianStipp" target="_blank">
-            <img src="https://img.shields.io/twitter/follow/WianStipp?label=Follow&style=social" alt="Twitter">
-        </a>
-    </div>
-</div>
+</body>
+</html>
