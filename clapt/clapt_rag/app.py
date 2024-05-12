@@ -1,10 +1,10 @@
-from typing import Literal
-import streamlit as st
 import pickle
+from typing import Literal
+
+import streamlit as st
 from transformers import AutoTokenizer
 
 from clapt.clapt_rag.generate_vecstore import VectorStore
-
 
 Role = Literal["system", "user", "assistant"]
 
@@ -79,7 +79,7 @@ def main():
     col1, col2 = st.columns((1, 2))
 
     with col1:
-        st.image("clapt/clapt_rag/static/cotrend.webp", width=300)
+        st.image("static/cotrend.webp", width=300)
         st.write("Extending Decoders with an Integrated Encoder")
 
     with col2:
