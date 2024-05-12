@@ -41,6 +41,23 @@ class ClaptSap(L.LightningModule):
         self.miner = miners.TripletMarginMiner(0.2, "all")
         self.loss = losses.MultiSimilarityLoss(alpha=1, beta=60, base=0.5)
 
+    def validation_step(
+        self,
+        batch: Tuple[T.Tensor, ...],
+        batch_idx: int,
+    ) -> T.Tensor | None:
+        query_toks1, query_toks2, labels = batch
+        loss = self(query_toks1, query_toks2, labels)
+        self.log(
+            "eval/loss",
+            loss.item(),
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+        return loss
+
     def training_step(
         self,
         batch: Tuple[T.Tensor, ...],
